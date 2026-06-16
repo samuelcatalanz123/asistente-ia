@@ -32,8 +32,8 @@ void main() {
     });
     final service = ChatService(baseUrl: 'http://test.local', client: mockClient);
 
-    expect(
-      () => service.sendMessages([const Message(role: 'user', content: 'x')]),
+    await expectLater(
+      service.sendMessages([const Message(role: 'user', content: 'x')]),
       throwsA(isA<Exception>()),
     );
   });

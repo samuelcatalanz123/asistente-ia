@@ -27,12 +27,14 @@ class _ChatScreenState extends State<ChatScreen> {
 
     try {
       final reply = await widget.service.sendMessages(_messages);
+      if (!mounted) return;
       setState(() => _messages.add(Message(role: 'assistant', content: reply)));
     } catch (e) {
+      if (!mounted) return;
       setState(() => _messages
           .add(Message(role: 'assistant', content: 'No me pude conectar, inténtalo de nuevo')));
     } finally {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
