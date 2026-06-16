@@ -33,6 +33,7 @@ func main() {
 
 	var ai AIClient = NewGroqClient(apiKey)
 
+	http.HandleFunc("/", withCORS(homeHandler))
 	http.HandleFunc("/health", withCORS(healthHandler))
 	http.HandleFunc("/chat", withCORS(NewChatHandler(ai)))
 
