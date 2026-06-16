@@ -5,84 +5,172 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Asistente IA</title>
   <style>
-    :root { --azul: #1a73e8; --gris: #f1f3f4; }
+    /* Colores en variables: así el modo oscuro solo cambia estos valores. */
+    :root {
+      --azul: #1a73e8;
+      --azul-osc: #1557b0;
+      --fondo: #f4f6fb;
+      --cabecera: linear-gradient(135deg, #1a73e8, #6c4ee0);
+      --burbuja-ia: #ffffff;
+      --texto-ia: #1f2733;
+      --texto-yo: #ffffff;
+      --barra: #ffffff;
+      --borde: #e2e6ee;
+      --chip: #eef1f8;
+      --chip-texto: #1a73e8;
+      --sombra: 0 2px 10px rgba(0,0,0,0.06);
+    }
+    body.oscuro {
+      --fondo: #0f1420;
+      --burbuja-ia: #1c2333;
+      --texto-ia: #e7ebf3;
+      --barra: #161c29;
+      --borde: #2a3346;
+      --chip: #1c2333;
+      --chip-texto: #7aa7ff;
+      --sombra: 0 2px 10px rgba(0,0,0,0.4);
+    }
     * { box-sizing: border-box; }
     body {
       margin: 0;
       font-family: -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
-      background: #fafafa;
+      background: var(--fondo);
+      color: var(--texto-ia);
       display: flex;
       flex-direction: column;
       height: 100vh;
+      transition: background 0.3s, color 0.3s;
     }
     header {
-      background: var(--azul);
+      background: var(--cabecera);
       color: #fff;
-      padding: 16px;
-      font-size: 18px;
-      font-weight: 600;
-      text-align: center;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: var(--sombra);
+      z-index: 2;
     }
-    .autor {
-      font-size: 13px;
-      font-weight: 400;
-      opacity: 0.85;
-      margin-top: 4px;
+    .titulo { display: flex; flex-direction: column; }
+    .titulo b { font-size: 18px; font-weight: 700; }
+    .titulo span { font-size: 12px; opacity: 0.9; margin-top: 2px; }
+    .acciones { display: flex; gap: 8px; }
+    .icono {
+      background: rgba(255,255,255,0.18);
+      border: none;
+      color: #fff;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      font-size: 17px;
+      cursor: pointer;
+      transition: background 0.2s;
     }
+    .icono:hover { background: rgba(255,255,255,0.32); }
+
     #mensajes {
       flex: 1;
       overflow-y: auto;
-      padding: 16px;
+      padding: 18px;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 12px;
     }
     .burbuja {
-      max-width: 75%;
-      padding: 10px 14px;
-      border-radius: 16px;
-      line-height: 1.4;
+      max-width: 78%;
+      padding: 11px 15px;
+      border-radius: 18px;
+      line-height: 1.45;
       white-space: pre-wrap;
       word-wrap: break-word;
+      box-shadow: var(--sombra);
+      animation: aparecer 0.25s ease;
     }
-    .yo { align-self: flex-end; background: var(--azul); color: #fff; border-bottom-right-radius: 4px; }
-    .ia { align-self: flex-start; background: var(--gris); color: #202124; border-bottom-left-radius: 4px; }
+    @keyframes aparecer {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .yo {
+      align-self: flex-end;
+      background: var(--azul);
+      color: var(--texto-yo);
+      border-bottom-right-radius: 5px;
+    }
+    .ia {
+      align-self: flex-start;
+      background: var(--burbuja-ia);
+      color: var(--texto-ia);
+      border-bottom-left-radius: 5px;
+    }
+
+    /* Preguntas de ejemplo (chips que se pueden pulsar) */
+    #ejemplos {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 0 18px 8px;
+    }
+    .chip {
+      background: var(--chip);
+      color: var(--chip-texto);
+      border: 1px solid var(--borde);
+      border-radius: 18px;
+      padding: 8px 14px;
+      font-size: 13.5px;
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+    .chip:hover { transform: scale(1.04); }
+
     form {
       display: flex;
       gap: 8px;
       padding: 12px;
-      border-top: 1px solid #e0e0e0;
-      background: #fff;
+      border-top: 1px solid var(--borde);
+      background: var(--barra);
     }
     #texto {
       flex: 1;
-      padding: 12px;
-      border: 1px solid #ccc;
+      padding: 12px 16px;
+      border: 1px solid var(--borde);
       border-radius: 24px;
       font-size: 15px;
       outline: none;
+      background: var(--fondo);
+      color: var(--texto-ia);
     }
     #texto:focus { border-color: var(--azul); }
-    button {
+    #enviar {
       background: var(--azul);
       color: #fff;
       border: none;
       border-radius: 24px;
-      padding: 0 20px;
+      padding: 0 22px;
       font-size: 15px;
+      font-weight: 600;
       cursor: pointer;
+      transition: background 0.2s;
     }
-    button:disabled { opacity: 0.5; cursor: default; }
+    #enviar:hover { background: var(--azul-osc); }
+    #enviar:disabled { opacity: 0.5; cursor: default; }
   </style>
 </head>
 <body>
   <header>
-    Asistente IA
-    <div class="autor">Creado por Samuel</div>
+    <div class="titulo">
+      <b>Asistente IA</b>
+      <span>Creado por Samuel</span>
+    </div>
+    <div class="acciones">
+      <button id="btnTema" class="icono" title="Modo claro/oscuro">🌙</button>
+      <button id="btnNuevo" class="icono" title="Nueva conversación">🔄</button>
+    </div>
   </header>
-  <div id="mensajes">
-    <div class="burbuja ia">¡Hola! Soy tu asistente. Escríbeme una pregunta. 🙂</div>
-  </div>
+
+  <div id="mensajes"></div>
+
+  <div id="ejemplos"></div>
+
   <form id="formulario">
     <input id="texto" type="text" placeholder="Escribe tu mensaje..." autocomplete="off" />
     <button id="enviar" type="submit">Enviar</button>
@@ -90,12 +178,23 @@
 
   <script>
     const mensajes = document.getElementById("mensajes");
+    const ejemplos = document.getElementById("ejemplos");
     const formulario = document.getElementById("formulario");
     const texto = document.getElementById("texto");
     const enviar = document.getElementById("enviar");
+    const btnTema = document.getElementById("btnTema");
+    const btnNuevo = document.getElementById("btnNuevo");
+
+    // Preguntas de ejemplo que se muestran al empezar.
+    const PREGUNTAS = [
+      "Explícame qué es Go 💻",
+      "Dame una idea para un proyecto",
+      "Cuéntame un chiste de programadores 😄",
+      "¿Cómo empiezo a aprender a programar?",
+    ];
 
     // Historial de la conversación que se envía al servidor.
-    const historial = [];
+    let historial = [];
 
     function pintar(rol, contenido) {
       const div = document.createElement("div");
@@ -106,11 +205,41 @@
       return div;
     }
 
-    formulario.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const contenido = texto.value.trim();
+    // Muestra las preguntas de ejemplo (al inicio o tras "nueva conversación").
+    function mostrarEjemplos() {
+      ejemplos.innerHTML = "";
+      PREGUNTAS.forEach((p) => {
+        const chip = document.createElement("div");
+        chip.className = "chip";
+        chip.textContent = p;
+        chip.addEventListener("click", () => enviarMensaje(p));
+        ejemplos.appendChild(chip);
+      });
+    }
+
+    // Efecto "escribir poco a poco": revela el texto palabra a palabra.
+    function escribirPocoAPoco(div, textoCompleto) {
+      return new Promise((resolve) => {
+        const palabras = textoCompleto.split(" ");
+        let i = 0;
+        div.textContent = "";
+        const intervalo = setInterval(() => {
+          div.textContent += (i === 0 ? "" : " ") + palabras[i];
+          mensajes.scrollTop = mensajes.scrollHeight;
+          i++;
+          if (i >= palabras.length) {
+            clearInterval(intervalo);
+            resolve();
+          }
+        }, 40);
+      });
+    }
+
+    async function enviarMensaje(contenido) {
+      contenido = contenido.trim();
       if (!contenido) return;
 
+      ejemplos.innerHTML = ""; // ocultar ejemplos al empezar a chatear
       pintar("user", contenido);
       historial.push({ role: "user", content: contenido });
       texto.value = "";
@@ -126,7 +255,7 @@
         });
         const datos = await resp.json();
         if (resp.ok) {
-          pensando.textContent = datos.reply;
+          await escribirPocoAPoco(pensando, datos.reply);
           historial.push({ role: "assistant", content: datos.reply });
         } else {
           pensando.textContent = "⚠️ " + (datos.error || "Algo salió mal.");
@@ -137,7 +266,32 @@
         enviar.disabled = false;
         texto.focus();
       }
+    }
+
+    // Enviar al pulsar el botón / Enter.
+    formulario.addEventListener("submit", (e) => {
+      e.preventDefault();
+      enviarMensaje(texto.value);
     });
+
+    // Botón "Nueva conversación": borra todo y empieza de cero.
+    btnNuevo.addEventListener("click", () => {
+      historial = [];
+      mensajes.innerHTML = "";
+      pintar("assistant", "¡Hola! Soy tu asistente. ¿En qué te ayudo? 🙂");
+      mostrarEjemplos();
+      texto.focus();
+    });
+
+    // Botón de modo claro/oscuro.
+    btnTema.addEventListener("click", () => {
+      document.body.classList.toggle("oscuro");
+      btnTema.textContent = document.body.classList.contains("oscuro") ? "☀️" : "🌙";
+    });
+
+    // Mensaje de bienvenida al cargar.
+    pintar("assistant", "¡Hola! Soy tu asistente. ¿En qué te ayudo? 🙂");
+    mostrarEjemplos();
   </script>
 </body>
 </html>
