@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'services/chat_service.dart';
 import 'screens/chat_screen.dart';
 
-// Para desarrollo local con emulador Android usa http://10.0.2.2:8080
-// En producción, reemplaza por la URL pública de Render (Tarea 13).
+// Por defecto apunta al servidor desplegado en Render (producción).
+// Para desarrollo local puedes sobreescribirlo con:
+//   flutter run --dart-define=BACKEND_URL=http://10.0.2.2:8090
 const backendUrl = String.fromEnvironment(
   'BACKEND_URL',
-  defaultValue: 'http://10.0.2.2:8080',
+  defaultValue: 'https://asistente-ia-xh5v.onrender.com',
 );
 
 void main() {
