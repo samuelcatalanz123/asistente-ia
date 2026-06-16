@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 )
 
 // withCORS allows the Flutter app (any origin) to call the API.
@@ -35,6 +36,12 @@ func main() {
 	http.HandleFunc("/health", withCORS(healthHandler))
 	http.HandleFunc("/chat", withCORS(NewChatHandler(ai)))
 
+	srv := &http.Server{
+		Addr:         ":" + port,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 35 * time.Second, // un poco más que el timeout de Groq (30s)
+	}
+
 	log.Printf("servidor escuchando en :%s", port)
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	log.Fatal(srv.ListenAndServe())
 }

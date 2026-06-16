@@ -54,9 +54,12 @@ func (c *GroqClient) Complete(messages []Message) (string, error) {
 	}
 	defer resp.Body.Close()
 
-	body, _ := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("reading groq response: %w", err)
+	}
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("groq error %d: %s", resp.StatusCode, string(body))
+		return "", fmt.Errorf("groq error %d", resp.StatusCode)
 	}
 	var parsed groqResponse
 	if err := json.Unmarshal(body, &parsed); err != nil {

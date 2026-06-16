@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -73,5 +74,30 @@ func TestChatHandlerRejectsEmptyMessages(t *testing.T) {
 
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400 for empty messages, got %d", rec.Code)
+	}
+}
+
+func TestChatHandlerRejectsNonPost(t *testing.T) {
+	handler := NewChatHandler(&fakeAI{reply: "x"})
+	req := httptest.NewRequest(http.MethodGet, "/chat", nil)
+	rec := httptest.NewRecorder()
+
+	handler(rec, req)
+
+	if rec.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("expected 405 for GET, got %d", rec.Code)
+	}
+}
+
+func TestChatHandlerReturns502WhenAIFails(t *testing.T) {
+	handler := NewChatHandler(&fakeAI{err: errors.New("boom")})
+	body := `{"messages":[{"role":"user","content":"hola"}]}`
+	req := httptest.NewRequest(http.MethodPost, "/chat", strings.NewReader(body))
+	rec := httptest.NewRecorder()
+
+	handler(rec, req)
+
+	if rec.Code != http.StatusBadGateway {
+		t.Fatalf("expected 502 when AI fails, got %d", rec.Code)
 	}
 }

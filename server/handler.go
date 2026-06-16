@@ -23,6 +23,8 @@ func NewChatHandler(ai AIClient) http.HandlerFunc {
 			writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "usa POST"})
 			return
 		}
+		// Limita el cuerpo a 1 MB para que nadie pueda saturar el servidor.
+		r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 		var req ChatRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "json inválido"})
