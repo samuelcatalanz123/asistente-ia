@@ -1,0 +1,10 @@
+# Dependencias y secretos
+.env
+*.log
+
+# Flutter
+app/build/
+app/.dart_tool/
+
+# Go
+server/asistente-ia
