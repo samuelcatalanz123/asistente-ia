@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: asistente-ia-server
+    runtime: go
+    rootDir: server
+    buildCommand: go build -o app .
+    startCommand: ./app
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
