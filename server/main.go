@@ -33,10 +33,13 @@ func main() {
 
 	groq := NewGroqClient(apiKey)
 
+	// Máximo 30 peticiones por minuto por IP en las rutas del chat.
+	limitador := newRateLimiter(30, time.Minute)
+
 	http.HandleFunc("/", withCORS(homeHandler))
 	http.HandleFunc("/health", withCORS(healthHandler))
-	http.HandleFunc("/chat", withCORS(NewChatHandler(groq)))
-	http.HandleFunc("/chat/stream", withCORS(NewStreamChatHandler(groq)))
+	http.HandleFunc("/chat", withCORS(limitador.middleware(NewChatHandler(groq))))
+	http.HandleFunc("/chat/stream", withCORS(limitador.middleware(NewStreamChatHandler(groq))))
 
 	srv := &http.Server{
 		Addr:         ":" + port,
