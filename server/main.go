@@ -37,6 +37,8 @@ func main() {
 	limitador := newRateLimiter(30, time.Minute)
 
 	http.HandleFunc("/", withCORS(homeHandler))
+	http.HandleFunc("/favicon.ico", faviconHandler)
+	http.HandleFunc("/favicon.png", faviconHandler)
 	http.HandleFunc("/health", withCORS(healthHandler))
 	http.HandleFunc("/chat", withCORS(limitador.middleware(NewChatHandler(groq))))
 	http.HandleFunc("/chat/stream", withCORS(limitador.middleware(NewStreamChatHandler(groq))))
