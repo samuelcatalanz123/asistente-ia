@@ -265,6 +265,48 @@
       cursor: pointer;
       font-size: 15px;
     }
+
+    /* Menú de ajustes de voz */
+    #fondoAjustes {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      display: none;
+      z-index: 12;
+    }
+    #fondoAjustes.abierto { display: flex; align-items: center; justify-content: center; }
+    #ajustes {
+      background: var(--panel);
+      color: var(--texto-ia);
+      width: 340px;
+      max-width: 90%;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+    }
+    #ajustes h3 { margin: 0 0 14px; font-size: 17px; }
+    #ajustes label { display: block; margin: 14px 0 6px; font-size: 14px; font-weight: 600; }
+    #ajustes select, #ajustes input[type=range] {
+      width: 100%;
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid var(--borde);
+      background: var(--fondo);
+      color: var(--texto-ia);
+    }
+    #ajustes input[type=range] { padding: 0; }
+    .ajustes-botones { display: flex; gap: 8px; margin-top: 18px; }
+    .ajustes-botones button {
+      flex: 1;
+      padding: 11px;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    #probarVoz { background: var(--chip); color: var(--chip-texto); }
+    #cerrarAjustes { background: var(--azul); color: #fff; }
   </style>
 </head>
 <body>
@@ -277,6 +319,7 @@
     <div class="acciones">
       <button id="btnNuevoRapido" class="icono" title="Nueva conversación">➕</button>
       <button id="btnVoz" class="icono" title="Activar/desactivar voz">🔇</button>
+      <button id="btnAjustes" class="icono" title="Ajustes de voz">⚙️</button>
       <button id="btnPantalla" class="icono" title="Pantalla completa">⛶</button>
       <button id="btnTema" class="icono" title="Modo claro/oscuro">🌙</button>
     </div>
@@ -299,6 +342,23 @@
     <div id="listaConvs"></div>
   </nav>
 
+  <!-- Menú de ajustes de voz -->
+  <div id="fondoAjustes">
+    <div id="ajustes">
+      <h3>🎙️ Ajustes de voz</h3>
+      <label for="selVoz">Voz</label>
+      <select id="selVoz"></select>
+      <label>Velocidad: <span id="valVel"></span></label>
+      <input id="sliderVel" type="range" min="0.5" max="1.4" step="0.02" />
+      <label>Tono: <span id="valTono"></span></label>
+      <input id="sliderTono" type="range" min="0.6" max="1.6" step="0.02" />
+      <div class="ajustes-botones">
+        <button id="probarVoz">🔊 Probar</button>
+        <button id="cerrarAjustes">Listo</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const mensajes = document.getElementById("mensajes");
     const ejemplos = document.getElementById("ejemplos");
@@ -310,6 +370,15 @@
     const btnVoz = document.getElementById("btnVoz");
     const btnPantalla = document.getElementById("btnPantalla");
     const btnNuevoRapido = document.getElementById("btnNuevoRapido");
+    const btnAjustes = document.getElementById("btnAjustes");
+    const fondoAjustes = document.getElementById("fondoAjustes");
+    const selVoz = document.getElementById("selVoz");
+    const sliderVel = document.getElementById("sliderVel");
+    const sliderTono = document.getElementById("sliderTono");
+    const valVel = document.getElementById("valVel");
+    const valTono = document.getElementById("valTono");
+    const probarVoz = document.getElementById("probarVoz");
+    const cerrarAjustes = document.getElementById("cerrarAjustes");
     const btnMenu = document.getElementById("btnMenu");
     const panel = document.getElementById("panel");
     const fondoPanel = document.getElementById("fondoPanel");
@@ -469,40 +538,105 @@
     }
 
     // ---------- Voz (#3) ----------
-    let vozElegida = null;
-    function elegirVoz() {
-      if (!window.speechSynthesis) return;
-      const voces = window.speechSynthesis.getVoices();
+    // ---------- Voz: configuración guardada por el usuario ----------
+    const CLAVE_VOZ = "ajustes-voz";
+    let configVoz = { nombre: null, rate: 0.9, pitch: 1.1 };
+    try {
+      const g = JSON.parse(localStorage.getItem(CLAVE_VOZ) || "null");
+      if (g) configVoz = g;
+    } catch (e) {}
+
+    function vocesEs() {
+      const voces = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
       const es = voces.filter((v) => v.lang && v.lang.toLowerCase().startsWith("es"));
-      // Preferimos una voz española de buena calidad si está disponible.
-      // Preferimos una voz femenina española (Mónica, Paulina, Marisol...).
-      vozElegida =
-        es.find((v) => /mónica|monica|paulina|marisol|lucia|esperanza|sabina|female|mujer/i.test(v.name)) ||
-        es[0] ||
-        null;
+      return es.length ? es : voces;
     }
-    if (window.speechSynthesis) {
-      elegirVoz();
-      window.speechSynthesis.onvoiceschanged = elegirVoz;
+    function vozPorDefecto() {
+      const es = vocesEs();
+      return (
+        es.find((v) => /mónica|monica|paulina|marisol|lucia|esperanza|sabina|female|mujer/i.test(v.name)) ||
+        es[0] || null
+      );
+    }
+    function vozActual() {
+      const voces = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+      return voces.find((v) => v.name === configVoz.nombre) || vozPorDefecto();
+    }
+    function limpiarParaVoz(t) {
+      return t
+        .replace(/```[\s\S]*?```/g, " código ")
+        .replace(/[*`#_]/g, "")
+        .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}\u{1F3FB}-\u{1F3FF}]/gu, "");
+    }
+    function decir(texto) {
+      if (!window.speechSynthesis) return;
+      const u = new SpeechSynthesisUtterance(limpiarParaVoz(texto));
+      u.lang = "es-ES";
+      const v = vozActual();
+      if (v) u.voice = v;
+      u.rate = configVoz.rate;
+      u.pitch = configVoz.pitch;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(u);
     }
     function hablar(t) {
-      if (!leerEnVoz || !window.speechSynthesis) return;
-      let limpio = t
-        .replace(/```[\s\S]*?```/g, " código ")
-        .replace(/[*`#_]/g, "");
-      // Quitamos emojis para que no los lea ("cara sonriente").
-      limpio = limpio.replace(
-        /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}\u{1F3FB}-\u{1F3FF}]/gu,
-        ""
-      );
-      const voz = new SpeechSynthesisUtterance(limpio);
-      voz.lang = "es-ES";
-      if (vozElegida) voz.voice = vozElegida;
-      voz.rate = 0.82;   // más lenta y pausada
-      voz.pitch = 1.18;  // tono más alto = voz más joven
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(voz);
+      if (leerEnVoz) decir(t);
     }
+
+    // ---------- Menú de ajustes de voz ----------
+    function poblarVoces() {
+      if (!selVoz) return;
+      const voces = vocesEs();
+      selVoz.innerHTML = "";
+      voces.forEach((v) => {
+        const op = document.createElement("option");
+        op.value = v.name;
+        op.textContent = v.name + (v.lang ? " (" + v.lang + ")" : "");
+        if (v.name === configVoz.nombre) op.selected = true;
+        selVoz.appendChild(op);
+      });
+      if (!configVoz.nombre) {
+        const def = vozPorDefecto();
+        if (def) { configVoz.nombre = def.name; selVoz.value = def.name; }
+      }
+    }
+    function refrescarLabels() {
+      sliderVel.value = configVoz.rate;
+      sliderTono.value = configVoz.pitch;
+      valVel.textContent = configVoz.rate.toFixed(2);
+      valTono.textContent = configVoz.pitch.toFixed(2);
+    }
+    function guardarVoz() { localStorage.setItem(CLAVE_VOZ, JSON.stringify(configVoz)); }
+
+    if (window.speechSynthesis) {
+      poblarVoces();
+      refrescarLabels();
+      window.speechSynthesis.onvoiceschanged = poblarVoces;
+    }
+
+    btnAjustes.addEventListener("click", () => {
+      poblarVoces();
+      refrescarLabels();
+      fondoAjustes.classList.add("abierto");
+    });
+    cerrarAjustes.addEventListener("click", () => fondoAjustes.classList.remove("abierto"));
+    fondoAjustes.addEventListener("click", (e) => {
+      if (e.target === fondoAjustes) fondoAjustes.classList.remove("abierto");
+    });
+    selVoz.addEventListener("change", () => { configVoz.nombre = selVoz.value; guardarVoz(); });
+    sliderVel.addEventListener("input", () => {
+      configVoz.rate = parseFloat(sliderVel.value);
+      valVel.textContent = configVoz.rate.toFixed(2);
+      guardarVoz();
+    });
+    sliderTono.addEventListener("input", () => {
+      configVoz.pitch = parseFloat(sliderTono.value);
+      valTono.textContent = configVoz.pitch.toFixed(2);
+      guardarVoz();
+    });
+    probarVoz.addEventListener("click", () =>
+      decir("Hola, soy tu asistente. Así sueno con esta configuración.")
+    );
 
     // ---------- Botón parar (#5) ----------
     function modoCargando(activo) {
