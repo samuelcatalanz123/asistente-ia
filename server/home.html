@@ -498,7 +498,7 @@
       const voz = new SpeechSynthesisUtterance(limpio);
       voz.lang = "es-ES";
       if (vozElegida) voz.voice = vozElegida;
-      voz.rate = 1.0;    // ritmo natural
+      voz.rate = 0.82;   // más lenta y pausada
       voz.pitch = 1.18;  // tono más alto = voz más joven
       window.speechSynthesis.cancel();
       window.speechSynthesis.speak(voz);
