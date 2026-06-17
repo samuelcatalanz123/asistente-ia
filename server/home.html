@@ -475,8 +475,9 @@
       const voces = window.speechSynthesis.getVoices();
       const es = voces.filter((v) => v.lang && v.lang.toLowerCase().startsWith("es"));
       // Preferimos una voz española de buena calidad si está disponible.
+      // Preferimos voces naturales/mejoradas y suaves (sonido más profesional).
       vozElegida =
-        es.find((v) => /mónica|monica|paulina|google|premium|enhanced/i.test(v.name)) ||
+        es.find((v) => /enhanced|premium|siri|google|mónica|monica|paulina/i.test(v.name)) ||
         es[0] ||
         null;
     }
@@ -497,7 +498,8 @@
       const voz = new SpeechSynthesisUtterance(limpio);
       voz.lang = "es-ES";
       if (vozElegida) voz.voice = vozElegida;
-      voz.rate = 1.0;
+      voz.rate = 0.9;    // un poco más lenta = más calmada/profesional
+      voz.pitch = 0.95;  // tono ligeramente más grave = más suave
       window.speechSynthesis.cancel();
       window.speechSynthesis.speak(voz);
     }
@@ -507,6 +509,23 @@
       cargando = activo;
       enviar.textContent = activo ? "⏹ Parar" : "Enviar";
       enviar.classList.toggle("parar", activo);
+    }
+
+    // ---------- Comandos: abrir cursos/páginas ----------
+    function quitarAcentos(s) {
+      return s.normalize("NFD").replace(/[̀-ͯ]/g, "");
+    }
+    const CURSOS = [
+      { re: /mecanograf|teclado|escribir rapido/, url: "https://www.mecanografia-online.com/", nombre: "un curso de mecanografía ⌨️" },
+      { re: /\bflutter\b|\bdart\b/, url: "https://docs.flutter.dev/", nombre: "la documentación de Flutter 📱" },
+      { re: /\bgolang\b|\bgo\b/, url: "https://go.dev/learn/", nombre: "recursos para aprender Go 💻" },
+      { re: /\bpython\b/, url: "https://www.python.org/about/gettingstarted/", nombre: "recursos para aprender Python 🐍" },
+    ];
+    function detectarCurso(texto) {
+      const t = quitarAcentos(texto.toLowerCase());
+      const pideAbrir = /(abre|abreme|abrir|curso de|quiero aprender|ensename|aprender)/.test(t);
+      if (!pideAbrir) return null;
+      return CURSOS.find((c) => c.re.test(t)) || null;
     }
 
     async function enviarMensaje(contenido) {
@@ -523,8 +542,21 @@
       }
       guardarTodo();
       texto.value = "";
-      modoCargando(true);
 
+      // ¿Es un comando para abrir un curso/página?
+      const curso = detectarCurso(contenido);
+      if (curso) {
+        window.open(curso.url, "_blank");
+        const conf = "¡Listo! Te he abierto " + curso.nombre + " en una pestaña nueva. 👍";
+        pintar("assistant", conf);
+        historial().push({ role: "assistant", content: conf });
+        guardarTodo();
+        hablar(conf);
+        texto.focus();
+        return;
+      }
+
+      modoCargando(true);
       const pensando = pintar("assistant", "…");
       let acumulado = "";
       aborto = new AbortController();
