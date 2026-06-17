@@ -13,7 +13,12 @@ void main() {
     });
     final service = ChatService(baseUrl: 'http://test.local', client: mockClient);
 
-    await tester.pumpWidget(MaterialApp(home: ChatScreen(service: service)));
+    await tester.pumpWidget(MaterialApp(
+        home: ChatScreen(
+      service: service,
+      onToggleTheme: () {},
+      isDark: false,
+    )));
 
     await tester.enterText(find.byType(TextField), 'hola mundo');
     await tester.tap(find.byIcon(Icons.send));

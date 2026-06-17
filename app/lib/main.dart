@@ -14,15 +14,43 @@ void main() {
   runApp(const AsistenteApp());
 }
 
-class AsistenteApp extends StatelessWidget {
+class AsistenteApp extends StatefulWidget {
   const AsistenteApp({super.key});
+
+  @override
+  State<AsistenteApp> createState() => _AsistenteAppState();
+}
+
+class _AsistenteAppState extends State<AsistenteApp> {
+  ThemeMode _modo = ThemeMode.light;
+
+  void _alternarTema() {
+    setState(() {
+      _modo = _modo == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Asistente IA',
-      theme: ThemeData(colorSchemeSeed: Colors.blue, useMaterial3: true),
-      home: ChatScreen(service: ChatService(baseUrl: backendUrl)),
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorSchemeSeed: const Color(0xFF1A73E8),
+        useMaterial3: true,
+        brightness: Brightness.light,
+      ),
+      darkTheme: ThemeData(
+        colorSchemeSeed: const Color(0xFF1A73E8),
+        useMaterial3: true,
+        brightness: Brightness.dark,
+      ),
+      themeMode: _modo,
+      home: ChatScreen(
+        service: ChatService(baseUrl: backendUrl),
+        onToggleTheme: _alternarTema,
+        isDark: _modo == ThemeMode.dark,
+      ),
     );
   }
 }
