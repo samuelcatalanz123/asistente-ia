@@ -1,0 +1,5 @@
+# Archivos que NO hace falta meter en la imagen de Docker.
+*_test.go
+app
+README.md
+.git

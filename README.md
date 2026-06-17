@@ -48,6 +48,7 @@ y reenvía la consulta a Groq, devolviendo la respuesta en *streaming* mediante
 | Backend | **Go** (librería estándar, sin frameworks) |
 | IA | **Groq API** — modelo Llama 3.3 (capa gratuita) |
 | Hosting | **Render** (backend) |
+| Contenedores | **Docker** (build multi-stage, imagen mínima) |
 | Calidad | **GitHub Actions** (CI), tests en Go y Flutter |
 
 ## ▶️ Cómo ejecutarlo
@@ -65,6 +66,13 @@ cd app
 flutter pub get
 flutter run                                  # usa por defecto el backend en Render
 # Backend local:  flutter run --dart-define=BACKEND_URL=http://10.0.2.2:8090
+```
+
+**Backend con Docker 🐳:**
+```bash
+cd server
+docker build -t asistente-ia .
+docker run -p 8080:8080 -e GROQ_API_KEY=tu_clave asistente-ia
 ```
 
 ## ✅ Tests
