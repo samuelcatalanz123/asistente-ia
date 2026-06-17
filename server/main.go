@@ -31,11 +31,12 @@ func main() {
 		port = "8080"
 	}
 
-	var ai AIClient = NewGroqClient(apiKey)
+	groq := NewGroqClient(apiKey)
 
 	http.HandleFunc("/", withCORS(homeHandler))
 	http.HandleFunc("/health", withCORS(healthHandler))
-	http.HandleFunc("/chat", withCORS(NewChatHandler(ai)))
+	http.HandleFunc("/chat", withCORS(NewChatHandler(groq)))
+	http.HandleFunc("/chat/stream", withCORS(NewStreamChatHandler(groq)))
 
 	srv := &http.Server{
 		Addr:         ":" + port,
