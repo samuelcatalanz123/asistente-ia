@@ -475,9 +475,9 @@
       const voces = window.speechSynthesis.getVoices();
       const es = voces.filter((v) => v.lang && v.lang.toLowerCase().startsWith("es"));
       // Preferimos una voz española de buena calidad si está disponible.
-      // Preferimos una voz masculina española (Jorge, Diego, Carlos...).
+      // Preferimos una voz femenina española (Mónica, Paulina, Marisol...).
       vozElegida =
-        es.find((v) => /jorge|diego|carlos|juan|enrique|paco|male|hombre/i.test(v.name)) ||
+        es.find((v) => /mónica|monica|paulina|marisol|lucia|esperanza|sabina|female|mujer/i.test(v.name)) ||
         es[0] ||
         null;
     }
@@ -498,8 +498,8 @@
       const voz = new SpeechSynthesisUtterance(limpio);
       voz.lang = "es-ES";
       if (vozElegida) voz.voice = vozElegida;
-      voz.rate = 0.9;    // un poco más lenta = más calmada/profesional
-      voz.pitch = 0.95;  // tono ligeramente más grave = más suave
+      voz.rate = 1.0;    // ritmo natural
+      voz.pitch = 1.18;  // tono más alto = voz más joven
       window.speechSynthesis.cancel();
       window.speechSynthesis.speak(voz);
     }
