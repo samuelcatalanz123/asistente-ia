@@ -274,7 +274,7 @@
       <span>Creado por Samuel</span>
     </div>
     <div class="acciones">
-      <button id="btnVoz" class="icono" title="Leer respuestas en voz alta">🔊</button>
+      <button id="btnVoz" class="icono" title="Activar/desactivar voz">🔇</button>
       <button id="btnTema" class="icono" title="Modo claro/oscuro">🌙</button>
     </div>
   </header>
@@ -583,6 +583,8 @@
     btnVoz.addEventListener("click", () => {
       leerEnVoz = !leerEnVoz;
       btnVoz.classList.toggle("activo", leerEnVoz);
+      btnVoz.textContent = leerEnVoz ? "🔊" : "🔇";
+      btnVoz.title = leerEnVoz ? "Voz activada (toca para apagar)" : "Voz apagada (toca para que hable)";
       if (!leerEnVoz && window.speechSynthesis) window.speechSynthesis.cancel();
     });
 
