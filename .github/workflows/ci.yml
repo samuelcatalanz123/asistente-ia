@@ -1,0 +1,42 @@
+  
+  name: CI
+
+  on:
+    push:
+      branches: [main]
+    pull_request:
+
+  jobs:
+    servidor-go:
+      name: Servidor (Go)
+      runs-on: ubuntu-latest
+      defaults:
+        run:
+          working-directory: server
+      steps:
+        - uses: actions/checkout@v4
+        - uses: actions/setup-go@v5
+          with:
+            go-version-file: server/go.mod
+        - name: Compilar
+          run: go build ./...
+        - name: Pruebas
+          run: go test ./...
+  
+    app-flutter:
+      name: App (Flutter)
+      runs-on: ubuntu-latest
+      defaults:
+        run:
+          working-directory: app
+      steps:
+        - uses: actions/checkout@v4
+        - uses: subosito/flutter-action@v2
+          with:
+            channel: stable
+        - name: Instalar dependencias
+          run: flutter pub get
+        - name: Revisar código  
+          run: flutter analyze
+        - name: Pruebas
+          run: flutter test
