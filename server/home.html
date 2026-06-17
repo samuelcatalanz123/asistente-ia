@@ -274,6 +274,7 @@
       <span>Creado por Samuel</span>
     </div>
     <div class="acciones">
+      <button id="btnNuevoRapido" class="icono" title="Nueva conversación">➕</button>
       <button id="btnVoz" class="icono" title="Activar/desactivar voz">🔇</button>
       <button id="btnPantalla" class="icono" title="Pantalla completa">⛶</button>
       <button id="btnTema" class="icono" title="Modo claro/oscuro">🌙</button>
@@ -307,6 +308,7 @@
     const btnTema = document.getElementById("btnTema");
     const btnVoz = document.getElementById("btnVoz");
     const btnPantalla = document.getElementById("btnPantalla");
+    const btnNuevoRapido = document.getElementById("btnNuevoRapido");
     const btnMenu = document.getElementById("btnMenu");
     const panel = document.getElementById("panel");
     const fondoPanel = document.getElementById("fondoPanel");
@@ -601,6 +603,7 @@
     btnMenu.addEventListener("click", abrirPanel);
     fondoPanel.addEventListener("click", cerrarPanel);
     nuevaConv.addEventListener("click", () => { crearNueva(); cerrarPanel(); });
+    btnNuevoRapido.addEventListener("click", () => crearNueva());
 
     btnTema.addEventListener("click", () => {
       document.body.classList.toggle("oscuro");
