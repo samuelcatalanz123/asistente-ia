@@ -475,9 +475,9 @@
       const voces = window.speechSynthesis.getVoices();
       const es = voces.filter((v) => v.lang && v.lang.toLowerCase().startsWith("es"));
       // Preferimos una voz española de buena calidad si está disponible.
-      // Preferimos voces naturales/mejoradas y suaves (sonido más profesional).
+      // Preferimos una voz masculina española (Jorge, Diego, Carlos...).
       vozElegida =
-        es.find((v) => /enhanced|premium|siri|google|mónica|monica|paulina/i.test(v.name)) ||
+        es.find((v) => /jorge|diego|carlos|juan|enrique|paco|male|hombre/i.test(v.name)) ||
         es[0] ||
         null;
     }
