@@ -275,6 +275,7 @@
     </div>
     <div class="acciones">
       <button id="btnVoz" class="icono" title="Activar/desactivar voz">🔇</button>
+      <button id="btnPantalla" class="icono" title="Pantalla completa">⛶</button>
       <button id="btnTema" class="icono" title="Modo claro/oscuro">🌙</button>
     </div>
   </header>
@@ -305,6 +306,7 @@
     const micro = document.getElementById("micro");
     const btnTema = document.getElementById("btnTema");
     const btnVoz = document.getElementById("btnVoz");
+    const btnPantalla = document.getElementById("btnPantalla");
     const btnMenu = document.getElementById("btnMenu");
     const panel = document.getElementById("panel");
     const fondoPanel = document.getElementById("fondoPanel");
@@ -464,10 +466,35 @@
     }
 
     // ---------- Voz (#3) ----------
+    let vozElegida = null;
+    function elegirVoz() {
+      if (!window.speechSynthesis) return;
+      const voces = window.speechSynthesis.getVoices();
+      const es = voces.filter((v) => v.lang && v.lang.toLowerCase().startsWith("es"));
+      // Preferimos una voz española de buena calidad si está disponible.
+      vozElegida =
+        es.find((v) => /mónica|monica|paulina|google|premium|enhanced/i.test(v.name)) ||
+        es[0] ||
+        null;
+    }
+    if (window.speechSynthesis) {
+      elegirVoz();
+      window.speechSynthesis.onvoiceschanged = elegirVoz;
+    }
     function hablar(t) {
       if (!leerEnVoz || !window.speechSynthesis) return;
-      const limpio = t.replace(/```[\s\S]*?```/g, " código ").replace(/[*`#]/g, "");
+      let limpio = t
+        .replace(/```[\s\S]*?```/g, " código ")
+        .replace(/[*`#_]/g, "");
+      // Quitamos emojis para que no los lea ("cara sonriente").
+      limpio = limpio.replace(
+        /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}\u{1F3FB}-\u{1F3FF}]/gu,
+        ""
+      );
       const voz = new SpeechSynthesisUtterance(limpio);
+      voz.lang = "es-ES";
+      if (vozElegida) voz.voice = vozElegida;
+      voz.rate = 1.0;
       window.speechSynthesis.cancel();
       window.speechSynthesis.speak(voz);
     }
@@ -578,6 +605,20 @@
     btnTema.addEventListener("click", () => {
       document.body.classList.toggle("oscuro");
       btnTema.textContent = document.body.classList.contains("oscuro") ? "☀️" : "🌙";
+    });
+
+    // Pantalla completa
+    btnPantalla.addEventListener("click", () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen();
+        btnPantalla.classList.add("activo");
+      } else {
+        document.exitFullscreen();
+        btnPantalla.classList.remove("activo");
+      }
+    });
+    document.addEventListener("fullscreenchange", () => {
+      btnPantalla.classList.toggle("activo", !!document.fullscreenElement);
     });
 
     btnVoz.addEventListener("click", () => {
