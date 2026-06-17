@@ -28,5 +28,9 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Usamos el micrófono para que puedas dictarle mensajes a tu asistente.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Usamos el reconocimiento de voz para convertir lo que dices en texto.</string>
 </dict>
 </plist>

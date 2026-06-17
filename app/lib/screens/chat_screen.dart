@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:speech_to_text/speech_to_text.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import '../models/message.dart';
 import '../services/chat_service.dart';
 
@@ -27,6 +29,13 @@ class _ChatScreenState extends State<ChatScreen> {
   final _messages = <Message>[];
   bool _loading = false;
 
+  // Voz
+  final _speech = SpeechToText();
+  final _tts = FlutterTts();
+  bool _speechDisponible = false;
+  bool _grabando = false;
+  bool _leerEnVoz = false;
+
   static const _clave = 'mensajes-guardados';
 
   static const _preguntas = [
@@ -40,6 +49,57 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     _cargar();
+    _prepararVoz();
+  }
+
+  Future<void> _prepararVoz() async {
+    final ok = await _speech.initialize(
+      onStatus: (s) {
+        if ((s == 'done' || s == 'notListening') && mounted) {
+          setState(() => _grabando = false);
+        }
+      },
+      onError: (e) {
+        if (mounted) setState(() => _grabando = false);
+      },
+    );
+    await _tts.setLanguage('es-ES');
+    if (mounted) setState(() => _speechDisponible = ok);
+  }
+
+  // 🎤 Dictar: empieza/para de escuchar el micrófono.
+  void _alternarMicro() async {
+    if (!_speechDisponible) return;
+    if (_grabando) {
+      await _speech.stop();
+      if (mounted) setState(() => _grabando = false);
+      return;
+    }
+    setState(() => _grabando = true);
+    await _speech.listen(
+      listenOptions: SpeechListenOptions(localeId: 'es_ES'),
+      onResult: (r) {
+        setState(() => _controller.text = r.recognizedWords);
+      },
+    );
+  }
+
+  // 🔊 Leer en voz alta la respuesta (sin los bloques de código).
+  Future<void> _hablar(String texto) async {
+    if (!_leerEnVoz) return;
+    final limpio = texto
+        .replaceAll(RegExp(r'```[\s\S]*?```'), ' código ')
+        .replaceAll(RegExp(r'[*`#]'), '');
+    await _tts.stop();
+    await _tts.speak(limpio);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _scroll.dispose();
+    _tts.stop();
+    super.dispose();
   }
 
   // ---------- #2 Recordar la conversación al cerrar ----------
@@ -98,6 +158,7 @@ class _ChatScreenState extends State<ChatScreen> {
             _messages[idx] = Message(role: 'assistant', content: buffer.toString()));
         _bajarDelTodo();
       }
+      _hablar(_messages[idx].content); // 🔊 leer en voz alta si está activado
     } catch (e) {
       if (mounted) {
         setState(() => _messages[idx] = const Message(
@@ -139,6 +200,14 @@ class _ChatScreenState extends State<ChatScreen> {
           ],
         ),
         actions: [
+          IconButton(
+            tooltip: 'Leer respuestas en voz alta',
+            icon: Icon(_leerEnVoz ? Icons.volume_up : Icons.volume_off),
+            onPressed: () {
+              setState(() => _leerEnVoz = !_leerEnVoz);
+              if (!_leerEnVoz) _tts.stop();
+            },
+          ),
           IconButton(
             tooltip: 'Modo claro/oscuro',
             icon: Icon(widget.isDark ? Icons.light_mode : Icons.dark_mode),
@@ -368,7 +437,16 @@ class _ChatScreenState extends State<ChatScreen> {
                 onSubmitted: _send,
               ),
             ),
-            const SizedBox(width: 8),
+            if (_speechDisponible) ...[
+              const SizedBox(width: 4),
+              IconButton(
+                tooltip: 'Hablar por voz',
+                icon: Icon(_grabando ? Icons.mic : Icons.mic_none,
+                    color: _grabando ? Colors.red : colors.primary),
+                onPressed: _alternarMicro,
+              ),
+            ],
+            const SizedBox(width: 4),
             CircleAvatar(
               backgroundColor: colors.primary,
               child: IconButton(
