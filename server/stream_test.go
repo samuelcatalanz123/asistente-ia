@@ -41,8 +41,9 @@ func TestStreamHandlerEnviaTrozos(t *testing.T) {
 			t.Fatalf("la salida no contiene %q. Salida: %s", esperado, salida)
 		}
 	}
-	if len(fake.got) != 1 || fake.got[0].Content != "saluda" {
-		t.Fatalf("no se pasaron bien los mensajes: %+v", fake.got)
+	// El handler antepone la personalidad: llega [system, user].
+	if len(fake.got) != 2 || fake.got[0].Role != "system" || fake.got[1].Content != "saluda" {
+		t.Fatalf("no se pasaron bien los mensajes (system + user): %+v", fake.got)
 	}
 }
 

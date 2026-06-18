@@ -42,12 +42,14 @@ func NewStreamChatHandler(ai StreamingAIClient) http.HandlerFunc {
 			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "faltan mensajes"})
 			return
 		}
+		// Anteponemos la personalidad elegida (modo) como mensaje "system".
+		mensajes := append([]Message{{Role: "system", Content: promptDeModo(req.Modo)}}, req.Messages...)
 
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("Connection", "keep-alive")
 
-		err := ai.StreamComplete(req.Messages, func(chunk string) {
+		err := ai.StreamComplete(mensajes, func(chunk string) {
 			sse(w, flusher, map[string]string{"t": chunk})
 		})
 		if err != nil {

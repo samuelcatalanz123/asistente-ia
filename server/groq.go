@@ -14,23 +14,6 @@ import (
 const groqURL = "https://api.groq.com/openai/v1/chat/completions"
 const groqModel = "llama-3.3-70b-versatile"
 
-// systemPrompt define la personalidad del asistente. Se envía como primer
-// mensaje (rol "system") en cada conversación para guiar cómo responde.
-const systemPrompt = "Eres el asistente personal de Samuel, un asistente con " +
-	"inteligencia artificial. Eres simpático, cercano y amable, como un buen " +
-	"amigo que ayuda. IMPORTANTE: responde SIEMPRE en el mismo idioma en el que " +
-	"te escribe la persona en su último mensaje. Si te escriben en inglés, " +
-	"respondes en inglés; si te escriben en español, respondes en español. " +
-	"Hablas de forma natural y relajada. Usas algún emoji de vez en cuando para " +
-	"dar calidez, pero sin pasarte. Das respuestas claras y fáciles de entender, " +
-	"sin tecnicismos innecesarios. Si no sabes algo, lo dices con sinceridad en " +
-	"vez de inventar. Tu objetivo es que la persona se sienta bien atendida y " +
-	"ayudada. Tienes conocimientos especiales de PROGRAMACIÓN (lenguajes como Go, " +
-	"Python, Dart/Flutter, JavaScript, bases de datos, despliegue en la nube, etc.): " +
-	"cuando te pregunten de programar, explica con claridad, da ejemplos sencillos y, " +
-	"si ayuda, muestra trozos de código. Aun así, sigues siendo un asistente amable " +
-	"que también ayuda con cualquier otro tema."
-
 // GroqClient calls Groq's OpenAI-compatible chat completions API.
 type GroqClient struct {
 	APIKey string
@@ -68,9 +51,7 @@ type groqStreamChunk struct {
 }
 
 func (c *GroqClient) Complete(messages []Message) (string, error) {
-	// Anteponemos la personalidad (mensaje "system") a la conversación.
-	withPersonality := append([]Message{{Role: "system", Content: systemPrompt}}, messages...)
-	payload, err := json.Marshal(groqRequest{Model: groqModel, Messages: withPersonality})
+	payload, err := json.Marshal(groqRequest{Model: groqModel, Messages: messages})
 	if err != nil {
 		return "", err
 	}
@@ -107,8 +88,7 @@ func (c *GroqClient) Complete(messages []Message) (string, error) {
 // StreamComplete pide la respuesta en modo streaming y llama a onChunk con
 // cada trocito de texto según va llegando desde Groq.
 func (c *GroqClient) StreamComplete(messages []Message, onChunk func(string)) error {
-	withPersonality := append([]Message{{Role: "system", Content: systemPrompt}}, messages...)
-	payload, err := json.Marshal(groqRequest{Model: groqModel, Messages: withPersonality, Stream: true})
+	payload, err := json.Marshal(groqRequest{Model: groqModel, Messages: messages, Stream: true})
 	if err != nil {
 		return err
 	}

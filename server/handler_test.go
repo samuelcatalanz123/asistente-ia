@@ -60,8 +60,15 @@ func TestChatHandlerReturnsReply(t *testing.T) {
 	if resp.Reply != "¡Hola! ¿En qué te ayudo?" {
 		t.Fatalf("unexpected reply: %q", resp.Reply)
 	}
-	if len(fake.got) != 1 || fake.got[0].Content != "hola" {
-		t.Fatalf("handler did not pass messages through: %+v", fake.got)
+	// El handler antepone la personalidad: llega [system, user].
+	if len(fake.got) != 2 {
+		t.Fatalf("esperaba 2 mensajes (system + user), got %+v", fake.got)
+	}
+	if fake.got[0].Role != "system" {
+		t.Fatalf("el primer mensaje debe ser la personalidad (system): %+v", fake.got[0])
+	}
+	if fake.got[1].Content != "hola" {
+		t.Fatalf("no se conservó el mensaje del usuario: %+v", fake.got)
 	}
 }
 

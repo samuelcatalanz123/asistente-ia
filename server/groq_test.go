@@ -8,9 +8,9 @@ import (
 	"testing"
 )
 
-// TestGroqClientSendsPersonality verifica que el cliente antepone el mensaje
-// "system" con la personalidad antes de enviar la conversación a Groq.
-func TestGroqClientSendsPersonality(t *testing.T) {
+// TestGroqClientEnviaLosMensajes verifica que el cliente envía a Groq
+// exactamente los mensajes que se le pasan (la personalidad la pone el handler).
+func TestGroqClientEnviaLosMensajes(t *testing.T) {
 	var recibido groqRequest
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -22,26 +22,33 @@ func TestGroqClientSendsPersonality(t *testing.T) {
 	client := NewGroqClient("clave-de-prueba")
 	client.URL = server.URL
 
-	reply, err := client.Complete([]Message{{Role: "user", Content: "hola"}})
+	entrada := []Message{
+		{Role: "system", Content: "eres amable"},
+		{Role: "user", Content: "hola"},
+	}
+	reply, err := client.Complete(entrada)
 	if err != nil {
 		t.Fatalf("no esperaba error: %v", err)
 	}
 	if reply != "¡Hola! 🙂" {
 		t.Fatalf("respuesta inesperada: %q", reply)
 	}
-
-	// El primer mensaje debe ser la personalidad (rol system).
 	if len(recibido.Messages) != 2 {
-		t.Fatalf("esperaba 2 mensajes (system + user), recibí %d", len(recibido.Messages))
+		t.Fatalf("esperaba 2 mensajes, recibí %d", len(recibido.Messages))
 	}
-	if recibido.Messages[0].Role != "system" {
-		t.Fatalf("el primer mensaje debe ser 'system', fue %q", recibido.Messages[0].Role)
+	if recibido.Messages[0].Role != "system" || recibido.Messages[1].Content != "hola" {
+		t.Fatalf("no se enviaron los mensajes tal cual: %+v", recibido.Messages)
 	}
-	if recibido.Messages[0].Content != systemPrompt {
-		t.Fatalf("la personalidad enviada no coincide")
+}
+
+// TestPromptDeModo verifica que cada personalidad da un texto distinto y que
+// un modo desconocido cae en "amigable".
+func TestPromptDeModo(t *testing.T) {
+	if promptDeModo("profesor") == promptDeModo("gracioso") {
+		t.Fatal("modos distintos deberían dar personalidades distintas")
 	}
-	if recibido.Messages[1].Role != "user" || recibido.Messages[1].Content != "hola" {
-		t.Fatalf("el mensaje del usuario no se conservó: %+v", recibido.Messages[1])
+	if promptDeModo("loquesea") != promptDeModo("amigable") {
+		t.Fatal("un modo desconocido debería usar 'amigable'")
 	}
 }
 

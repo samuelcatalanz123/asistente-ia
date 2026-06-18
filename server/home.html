@@ -311,6 +311,20 @@
     }
     #probarVoz { background: var(--chip); color: var(--chip-texto); }
     #cerrarAjustes { background: var(--azul); color: #fff; }
+
+    /* Botón de copiar respuesta */
+    .copiar-msg {
+      display: block;
+      margin-top: 8px;
+      background: transparent;
+      border: 1px solid var(--borde);
+      color: var(--chip-texto);
+      border-radius: 8px;
+      padding: 3px 10px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .copiar-msg:hover { background: var(--chip); }
   </style>
 </head>
 <body>
@@ -322,8 +336,9 @@
     </div>
     <div class="acciones">
       <button id="btnNuevoRapido" class="icono" title="Nueva conversación">➕</button>
+      <button id="btnCompartir" class="icono" title="Compartir conversación">📤</button>
       <button id="btnVoz" class="icono" title="Activar/desactivar voz">🔇</button>
-      <button id="btnAjustes" class="icono" title="Ajustes de voz">⚙️</button>
+      <button id="btnAjustes" class="icono" title="Ajustes">⚙️</button>
       <button id="btnPantalla" class="icono" title="Pantalla completa">⛶</button>
       <button id="btnTema" class="icono" title="Modo claro/oscuro">🌙</button>
     </div>
@@ -349,8 +364,16 @@
   <!-- Menú de ajustes de voz -->
   <div id="fondoAjustes">
     <div id="ajustes">
-      <h3>🎙️ Ajustes de voz</h3>
-      <label for="selVoz">Voz</label>
+      <h3>⚙️ Ajustes</h3>
+      <label for="selModo">🎭 Personalidad del asistente</label>
+      <select id="selModo">
+        <option value="amigable">😊 Amigable</option>
+        <option value="profesor">👨‍🏫 Profesor</option>
+        <option value="programador">💻 Programador</option>
+        <option value="gracioso">😄 Gracioso</option>
+      </select>
+      <hr style="border:none;border-top:1px solid var(--borde);margin:16px 0;" />
+      <label for="selVoz">🎙️ Voz</label>
       <select id="selVoz"></select>
       <label>Velocidad: <span id="valVel"></span></label>
       <input id="sliderVel" type="range" min="0.5" max="1.4" step="0.02" />
@@ -375,6 +398,8 @@
     const btnPantalla = document.getElementById("btnPantalla");
     const btnNuevoRapido = document.getElementById("btnNuevoRapido");
     const btnAjustes = document.getElementById("btnAjustes");
+    const btnCompartir = document.getElementById("btnCompartir");
+    const selModo = document.getElementById("selModo");
     const fondoAjustes = document.getElementById("fondoAjustes");
     const selVoz = document.getElementById("selVoz");
     const sliderVel = document.getElementById("sliderVel");
@@ -391,6 +416,7 @@
 
     const CLAVE_CONVS = "conversaciones";
     const CLAVE_ACTUAL = "conversacion-actual";
+    const CLAVE_MODO = "modo-asistente";
     const PREGUNTAS = [
       "Escríbeme un ejemplo de código en Go 💻",
       "Dame una idea para un proyecto",
@@ -403,6 +429,7 @@
     let leerEnVoz = false;
     let cargando = false;
     let aborto = null;         // para el botón de parar
+    let modoElegido = localStorage.getItem(CLAVE_MODO) || "amigable"; // personalidad
 
     // ---------- Conversaciones (#6) ----------
     function convActual() {
@@ -507,11 +534,27 @@
       });
     }
 
+    // Pone la respuesta de la IA con formato + un botón de "Copiar" (#B).
+    function ponerContenidoIA(div, texto) {
+      div.innerHTML = formatear(texto);
+      const btn = document.createElement("button");
+      btn.className = "copiar-msg";
+      btn.textContent = "📋 Copiar";
+      btn.onclick = () => {
+        navigator.clipboard.writeText(texto).then(() => {
+          btn.textContent = "✅ ¡Copiado!";
+          setTimeout(() => (btn.textContent = "📋 Copiar"), 1500);
+        });
+      };
+      div.appendChild(btn);
+    }
+
     function pintar(rol, contenido) {
       const div = document.createElement("div");
       div.className = "burbuja " + (rol === "user" ? "yo" : "ia");
       if (rol === "user") div.textContent = contenido;
-      else div.innerHTML = formatear(contenido);
+      else if (contenido === "…") div.innerHTML = "…";
+      else ponerContenidoIA(div, contenido);
       mensajes.appendChild(div);
       mensajes.scrollTop = mensajes.scrollHeight;
       return div;
@@ -703,7 +746,7 @@
         const resp = await fetch("/chat/stream", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: historial() }),
+          body: JSON.stringify({ messages: historial(), modo: modoElegido }),
           signal: aborto.signal,
         });
         const lector = resp.body.getReader();
@@ -737,7 +780,7 @@
         if (errorMsg) {
           pensando.textContent = "⚠️ " + errorMsg;
         } else {
-          pensando.innerHTML = formatear(acumulado);
+          ponerContenidoIA(pensando, acumulado);
           historial().push({ role: "assistant", content: acumulado });
           guardarTodo();
           hablar(acumulado);
@@ -746,7 +789,7 @@
         if (err.name === "AbortError") {
           // El usuario pulsó "parar": guardamos lo que llegó.
           if (acumulado) {
-            pensando.innerHTML = formatear(acumulado);
+            ponerContenidoIA(pensando, acumulado);
             historial().push({ role: "assistant", content: acumulado });
             guardarTodo();
           } else {
@@ -775,6 +818,34 @@
     fondoPanel.addEventListener("click", cerrarPanel);
     nuevaConv.addEventListener("click", () => { crearNueva(); cerrarPanel(); });
     btnNuevoRapido.addEventListener("click", () => crearNueva());
+
+    // #A — Personalidad del asistente
+    selModo.value = modoElegido;
+    selModo.addEventListener("change", () => {
+      modoElegido = selModo.value;
+      localStorage.setItem(CLAVE_MODO, modoElegido);
+    });
+
+    // #C — Compartir la conversación
+    btnCompartir.addEventListener("click", async () => {
+      const h = historial();
+      if (!h.length) {
+        alert("Escribe algo primero para poder compartir la conversación. 🙂");
+        return;
+      }
+      const texto = h
+        .map((m) => (m.role === "user" ? "🧑 Yo: " : "🤖 Asistente: ") + m.content)
+        .join("\n\n");
+      const completo = "💬 Conversación con mi Asistente IA\n\n" + texto;
+      try {
+        if (navigator.share) {
+          await navigator.share({ title: "Asistente IA", text: completo });
+        } else {
+          await navigator.clipboard.writeText(completo);
+          alert("¡Conversación copiada! 📋 Ya puedes pegarla donde quieras.");
+        }
+      } catch (e) {}
+    });
 
     btnTema.addEventListener("click", () => {
       document.body.classList.toggle("oscuro");

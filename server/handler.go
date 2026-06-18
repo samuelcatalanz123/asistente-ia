@@ -34,7 +34,9 @@ func NewChatHandler(ai AIClient) http.HandlerFunc {
 			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "faltan mensajes"})
 			return
 		}
-		reply, err := ai.Complete(req.Messages)
+		// Anteponemos la personalidad elegida (modo) como mensaje "system".
+		mensajes := append([]Message{{Role: "system", Content: promptDeModo(req.Modo)}}, req.Messages...)
+		reply, err := ai.Complete(mensajes)
 		if err != nil {
 			writeJSON(w, http.StatusBadGateway, ErrorResponse{Error: "la IA no respondió, inténtalo de nuevo"})
 			return
