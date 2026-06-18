@@ -9,7 +9,8 @@ type Message struct {
 // ChatRequest is what the Flutter app sends to POST /chat.
 type ChatRequest struct {
 	Messages []Message `json:"messages"`
-	Modo     string    `json:"modo,omitempty"` // personalidad: amigable, profesor, programador, gracioso
+	Modo     string    `json:"modo,omitempty"`   // personalidad: amigable, profesor, programador, gracioso
+	Modelo   string    `json:"modelo,omitempty"` // cerebro: rapido o inteligente
 }
 
 // ChatResponse is what POST /chat returns.

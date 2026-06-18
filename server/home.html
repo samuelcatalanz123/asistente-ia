@@ -135,6 +135,12 @@
       cursor: pointer;
     }
     .copiar:hover { background: rgba(255,255,255,0.3); }
+    .ia .t1 { font-size: 18px; font-weight: 700; margin: 9px 0 4px; }
+    .ia .t2 { font-size: 16px; font-weight: 700; margin: 8px 0 4px; }
+    .ia .t3 { font-size: 15px; font-weight: 700; margin: 7px 0 3px; }
+    .ia .li { margin: 3px 0 3px 6px; }
+    .hora { font-size: 10px; opacity: 0.55; margin-top: 4px; text-align: right; }
+    .yo .hora { color: rgba(255,255,255,0.8); }
     code.inline {
       background: rgba(125,125,125,0.18);
       padding: 1px 5px;
@@ -384,6 +390,11 @@
         <option value="programador">💻 Programador</option>
         <option value="gracioso">😄 Gracioso</option>
       </select>
+      <label for="selModelo">🧠 Cerebro (modelo de IA)</label>
+      <select id="selModelo">
+        <option value="inteligente">🦉 Inteligente (mejor respuesta)</option>
+        <option value="rapido">⚡ Rápido (responde al instante)</option>
+      </select>
       <hr style="border:none;border-top:1px solid var(--borde);margin:16px 0;" />
       <label for="selVoz">🎙️ Voz</label>
       <select id="selVoz"></select>
@@ -412,6 +423,7 @@
     const btnAjustes = document.getElementById("btnAjustes");
     const btnCompartir = document.getElementById("btnCompartir");
     const selModo = document.getElementById("selModo");
+    const selModelo = document.getElementById("selModelo");
     const fondoAjustes = document.getElementById("fondoAjustes");
     const selVoz = document.getElementById("selVoz");
     const sliderVel = document.getElementById("sliderVel");
@@ -431,6 +443,7 @@
     const CLAVE_CONVS = "conversaciones";
     const CLAVE_ACTUAL = "conversacion-actual";
     const CLAVE_MODO = "modo-asistente";
+    const CLAVE_MODELO = "modelo-asistente";
     const PREGUNTAS = [
       "Escríbeme un ejemplo de código en Go 💻",
       "Dame una idea para un proyecto",
@@ -444,6 +457,7 @@
     let cargando = false;
     let aborto = null;         // para el botón de parar
     let modoElegido = localStorage.getItem(CLAVE_MODO) || "amigable"; // personalidad
+    let modeloElegido = localStorage.getItem(CLAVE_MODELO) || "inteligente"; // cerebro
 
     // ---------- Conversaciones (#6) ----------
     function convActual() {
@@ -537,16 +551,29 @@
     function formatear(raw) {
       let s = escaparHTML(raw);
       const bloques = [];
+      // Bloques de código → cada uno en su propia línea (marcador BLOQUEn).
       s = s.replace(/```(\w*)\n?([\s\S]*?)```/g, (m, lang, code) => {
         bloques.push(code.replace(/\n+$/, ""));
-        return " B" + (bloques.length - 1) + " ";
+        return "\nBLOQUE" + (bloques.length - 1) + "\n";
       });
+      // Código en línea y negrita.
       s = s.replace(/`([^`]+)`/g, '<code class="inline">$1</code>');
       s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
-      s = s.replace(/\n/g, "<br>");
-      s = s.replace(/ B(\d+) /g, (m, i) =>
-        '<div class="codigo"><button class="copiar" onclick="copiarCodigo(this)">Copiar</button>' +
-        '<pre><code>' + bloques[i] + '</code></pre></div>');
+      // Procesar línea por línea: títulos, listas, texto. (#A mejor formato)
+      s = s.split("\n").map((linea) => {
+        let m;
+        if ((m = linea.match(/^BLOQUE(\d+)$/))) {
+          return '<div class="codigo"><button class="copiar" onclick="copiarCodigo(this)">Copiar</button>' +
+            '<pre><code>' + bloques[m[1]] + '</code></pre></div>';
+        }
+        if ((m = linea.match(/^\s*###\s+(.*)/))) return '<div class="t3">' + m[1] + "</div>";
+        if ((m = linea.match(/^\s*##\s+(.*)/))) return '<div class="t2">' + m[1] + "</div>";
+        if ((m = linea.match(/^\s*#\s+(.*)/))) return '<div class="t1">' + m[1] + "</div>";
+        if ((m = linea.match(/^\s*[-*]\s+(.*)/))) return '<div class="li">• ' + m[1] + "</div>";
+        if ((m = linea.match(/^\s*(\d+)\.\s+(.*)/))) return '<div class="li">' + m[1] + ". " + m[2] + "</div>";
+        if (linea.trim() === "") return "";
+        return linea + "<br>";
+      }).join("");
       return s;
     }
     function copiarCodigo(btn) {
@@ -557,8 +584,20 @@
       });
     }
 
-    // Pone la respuesta de la IA con formato + un botón de "Copiar" (#B).
-    function ponerContenidoIA(div, texto) {
+    // #C — hora del mensaje (HH:MM).
+    function horaActual() {
+      return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    }
+    function agregarHora(div, hora) {
+      if (!hora) return;
+      const h = document.createElement("div");
+      h.className = "hora";
+      h.textContent = hora;
+      div.appendChild(h);
+    }
+
+    // Pone la respuesta de la IA con formato + botón "Copiar" (#B) + hora (#C).
+    function ponerContenidoIA(div, texto, hora) {
       div.innerHTML = formatear(texto);
       const btn = document.createElement("button");
       btn.className = "copiar-msg";
@@ -570,14 +609,20 @@
         });
       };
       div.appendChild(btn);
+      agregarHora(div, hora);
     }
 
-    function pintar(rol, contenido) {
+    function pintar(rol, contenido, hora) {
       const div = document.createElement("div");
       div.className = "burbuja " + (rol === "user" ? "yo" : "ia");
-      if (rol === "user") div.textContent = contenido;
-      else if (contenido === "…") div.innerHTML = "…";
-      else ponerContenidoIA(div, contenido);
+      if (rol === "user") {
+        div.textContent = contenido;
+        agregarHora(div, hora);
+      } else if (contenido === "…") {
+        div.innerHTML = "…";
+      } else {
+        ponerContenidoIA(div, contenido, hora);
+      }
       mensajes.appendChild(div);
       mensajes.scrollTop = mensajes.scrollHeight;
       return div;
@@ -592,7 +637,7 @@
         mostrarEjemplos();
       } else {
         ejemplos.innerHTML = "";
-        h.forEach((m) => pintar(m.role, m.content));
+        h.forEach((m) => pintar(m.role, m.content, m.hora));
       }
     }
 
@@ -778,8 +823,9 @@
 
       ejemplos.innerHTML = "";
       limpiarSugerencias();
-      pintar("user", contenido);
-      historial().push({ role: "user", content: contenido });
+      const horaUser = horaActual();
+      pintar("user", contenido, horaUser);
+      historial().push({ role: "user", content: contenido, hora: horaUser });
       // El título de la conversación = primer mensaje del usuario.
       if (convActual() && convActual().mensajes.length === 1) {
         convActual().titulo = contenido.slice(0, 30);
@@ -810,7 +856,7 @@
         const resp = await fetch("/chat/stream", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: historial(), modo: modoElegido }),
+          body: JSON.stringify({ messages: historial(), modo: modoElegido, modelo: modeloElegido }),
           signal: aborto.signal,
         });
         const lector = resp.body.getReader();
@@ -844,11 +890,12 @@
         if (errorMsg) {
           pensando.textContent = "⚠️ " + errorMsg;
         } else {
-          ponerContenidoIA(pensando, acumulado);
-          historial().push({ role: "assistant", content: acumulado });
+          const horaIA = horaActual();
+          ponerContenidoIA(pensando, acumulado, horaIA);
+          historial().push({ role: "assistant", content: acumulado, hora: horaIA });
           guardarTodo();
           hablar(acumulado);
-          mostrarSugerencias(); // #A + #B: preguntas sugeridas y regenerar
+          mostrarSugerencias(); // preguntas sugeridas y regenerar
         }
       } catch (err) {
         if (err.name === "AbortError") {
@@ -890,6 +937,13 @@
     selModo.addEventListener("change", () => {
       modoElegido = selModo.value;
       localStorage.setItem(CLAVE_MODO, modoElegido);
+    });
+
+    // #B — Cerebro (modelo de IA)
+    selModelo.value = modeloElegido;
+    selModelo.addEventListener("change", () => {
+      modeloElegido = selModelo.value;
+      localStorage.setItem(CLAVE_MODELO, modeloElegido);
     });
 
     // #C — Compartir la conversación

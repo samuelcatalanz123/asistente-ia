@@ -14,6 +14,15 @@ import (
 const groqURL = "https://api.groq.com/openai/v1/chat/completions"
 const groqModel = "llama-3.3-70b-versatile"
 
+// modeloDeGroq traduce la elección del usuario ("rapido"/"inteligente") al
+// nombre real del modelo en Groq.
+func modeloDeGroq(modelo string) string {
+	if modelo == "rapido" {
+		return "llama-3.1-8b-instant" // más pequeño y veloz
+	}
+	return groqModel // "inteligente" (por defecto): el grande
+}
+
 // GroqClient calls Groq's OpenAI-compatible chat completions API.
 type GroqClient struct {
 	APIKey string
@@ -50,8 +59,8 @@ type groqStreamChunk struct {
 	} `json:"choices"`
 }
 
-func (c *GroqClient) Complete(messages []Message) (string, error) {
-	payload, err := json.Marshal(groqRequest{Model: groqModel, Messages: messages})
+func (c *GroqClient) Complete(messages []Message, modelo string) (string, error) {
+	payload, err := json.Marshal(groqRequest{Model: modeloDeGroq(modelo), Messages: messages})
 	if err != nil {
 		return "", err
 	}
@@ -87,8 +96,8 @@ func (c *GroqClient) Complete(messages []Message) (string, error) {
 
 // StreamComplete pide la respuesta en modo streaming y llama a onChunk con
 // cada trocito de texto según va llegando desde Groq.
-func (c *GroqClient) StreamComplete(messages []Message, onChunk func(string)) error {
-	payload, err := json.Marshal(groqRequest{Model: groqModel, Messages: messages, Stream: true})
+func (c *GroqClient) StreamComplete(messages []Message, modelo string, onChunk func(string)) error {
+	payload, err := json.Marshal(groqRequest{Model: modeloDeGroq(modelo), Messages: messages, Stream: true})
 	if err != nil {
 		return err
 	}

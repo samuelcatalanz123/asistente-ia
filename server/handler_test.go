@@ -35,7 +35,7 @@ type fakeAI struct {
 	got   []Message
 }
 
-func (f *fakeAI) Complete(messages []Message) (string, error) {
+func (f *fakeAI) Complete(messages []Message, modelo string) (string, error) {
 	f.got = messages
 	return f.reply, f.err
 }

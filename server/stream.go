@@ -8,7 +8,7 @@ import (
 
 // StreamingAIClient es un cliente de IA capaz de entregar la respuesta a trozos.
 type StreamingAIClient interface {
-	StreamComplete(messages []Message, onChunk func(string)) error
+	StreamComplete(messages []Message, modelo string, onChunk func(string)) error
 }
 
 // sse escribe un evento Server-Sent Events y lo envía inmediatamente.
@@ -49,7 +49,7 @@ func NewStreamChatHandler(ai StreamingAIClient) http.HandlerFunc {
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("Connection", "keep-alive")
 
-		err := ai.StreamComplete(mensajes, func(chunk string) {
+		err := ai.StreamComplete(mensajes, req.Modelo, func(chunk string) {
 			sse(w, flusher, map[string]string{"t": chunk})
 		})
 		if err != nil {

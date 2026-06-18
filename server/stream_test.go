@@ -13,7 +13,7 @@ type fakeStreamer struct {
 	got    []Message
 }
 
-func (f *fakeStreamer) StreamComplete(messages []Message, onChunk func(string)) error {
+func (f *fakeStreamer) StreamComplete(messages []Message, modelo string, onChunk func(string)) error {
 	f.got = messages
 	for _, c := range f.chunks {
 		onChunk(c)

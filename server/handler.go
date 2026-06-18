@@ -36,7 +36,7 @@ func NewChatHandler(ai AIClient) http.HandlerFunc {
 		}
 		// Anteponemos la personalidad elegida (modo) como mensaje "system".
 		mensajes := append([]Message{{Role: "system", Content: promptDeModo(req.Modo)}}, req.Messages...)
-		reply, err := ai.Complete(mensajes)
+		reply, err := ai.Complete(mensajes, req.Modelo)
 		if err != nil {
 			writeJSON(w, http.StatusBadGateway, ErrorResponse{Error: "la IA no respondió, inténtalo de nuevo"})
 			return
