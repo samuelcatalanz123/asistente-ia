@@ -28,6 +28,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final _scroll = ScrollController();
   final _messages = <Message>[];
   bool _loading = false;
+  bool _cancelar = false; // para el botón de parar
 
   // Voz
   final _speech = SpeechToText();
@@ -36,7 +37,25 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _grabando = false;
   bool _leerEnVoz = false;
 
+  // Personalidad
+  String _modo = 'amigable';
+
   static const _clave = 'mensajes-guardados';
+  static const _claveModo = 'modo-asistente';
+
+  static const _modos = {
+    'amigable': '😊 Amigable',
+    'profesor': '👨‍🏫 Profesor',
+    'programador': '💻 Programador',
+    'gracioso': '😄 Gracioso',
+  };
+
+  // [etiqueta, texto que se envía]
+  static const _sugerencias = [
+    ['📝 Dame un ejemplo', 'Dame un ejemplo'],
+    ['🔁 Más simple', 'Explícamelo más simple'],
+    ['➡️ ¿Qué más?', '¿Qué más me puedes decir sobre esto?'],
+  ];
 
   static const _preguntas = [
     'Escríbeme un ejemplo de código en Go 💻',
@@ -67,7 +86,6 @@ class _ChatScreenState extends State<ChatScreen> {
     if (mounted) setState(() => _speechDisponible = ok);
   }
 
-  // 🎤 Dictar: empieza/para de escuchar el micrófono.
   void _alternarMicro() async {
     if (!_speechDisponible) return;
     if (_grabando) {
@@ -84,7 +102,6 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  // 🔊 Leer en voz alta la respuesta (sin los bloques de código).
   Future<void> _hablar(String texto) async {
     if (!_leerEnVoz) return;
     final limpio = texto
@@ -102,23 +119,36 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
-  // ---------- #2 Recordar la conversación al cerrar ----------
   Future<void> _cargar() async {
     final prefs = await SharedPreferences.getInstance();
+    final modo = prefs.getString(_claveModo);
     final guardado = prefs.getString(_clave);
-    if (guardado == null) return;
-    try {
-      final lista = (jsonDecode(guardado) as List)
-          .map((e) => Message.fromJson(e as Map<String, dynamic>))
-          .toList();
-      if (mounted) setState(() => _messages..clear()..addAll(lista));
-    } catch (_) {}
+    if (mounted) {
+      setState(() {
+        if (modo != null && _modos.containsKey(modo)) _modo = modo;
+        if (guardado != null) {
+          try {
+            final lista = (jsonDecode(guardado) as List)
+                .map((e) => Message.fromJson(e as Map<String, dynamic>))
+                .toList();
+            _messages
+              ..clear()
+              ..addAll(lista);
+          } catch (_) {}
+        }
+      });
+    }
   }
 
   Future<void> _guardar() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
         _clave, jsonEncode(_messages.map((m) => m.toJson()).toList()));
+  }
+
+  Future<void> _guardarModo() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_claveModo, _modo);
   }
 
   void _bajarDelTodo() {
@@ -133,7 +163,7 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
-  // ---------- #4 Streaming: la respuesta llega trozo a trozo ----------
+  // ---------- Enviar (streaming con personalidad y botón de parar) ----------
   Future<void> _send(String text) async {
     text = text.trim();
     if (text.isEmpty || _loading) return;
@@ -141,24 +171,30 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() {
       _messages.add(Message(role: 'user', content: text));
       _loading = true;
+      _cancelar = false;
       _controller.clear();
     });
     _bajarDelTodo();
 
     final historia = List<Message>.from(_messages);
-    final idx = _messages.length; // posición de la respuesta del asistente
+    final idx = _messages.length;
     setState(() => _messages.add(const Message(role: 'assistant', content: '…')));
 
     try {
       final buffer = StringBuffer();
-      await for (final chunk in widget.service.streamMessages(historia)) {
+      await for (final chunk in widget.service.streamMessages(historia, modo: _modo)) {
+        if (_cancelar) break; // el usuario pulsó parar
         buffer.write(chunk);
         if (!mounted) return;
-        setState(() =>
-            _messages[idx] = Message(role: 'assistant', content: buffer.toString()));
+        setState(() => _messages[idx] =
+            Message(role: 'assistant', content: buffer.toString()));
         _bajarDelTodo();
       }
-      _hablar(_messages[idx].content); // 🔊 leer en voz alta si está activado
+      if (buffer.isEmpty && _cancelar) {
+        setState(() => _messages.removeAt(idx)); // no llegó nada
+      } else {
+        _hablar(_messages[idx].content);
+      }
     } catch (e) {
       if (mounted) {
         setState(() => _messages[idx] = const Message(
@@ -172,6 +208,20 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  void _parar() {
+    setState(() => _cancelar = true);
+  }
+
+  // 🔄 Regenerar la última respuesta.
+  void _regenerar() {
+    if (_loading || _messages.length < 2) return;
+    if (_messages.last.role == 'assistant') _messages.removeLast();
+    if (_messages.isEmpty || _messages.last.role != 'user') return;
+    final ultimoUser = _messages.removeLast().content;
+    setState(() {});
+    _send(ultimoUser);
+  }
+
   void _nuevaConversacion() async {
     setState(() {
       _messages.clear();
@@ -181,9 +231,26 @@ class _ChatScreenState extends State<ChatScreen> {
     await prefs.remove(_clave);
   }
 
+  // 📤 Compartir: copia toda la conversación al portapapeles.
+  void _compartir() {
+    if (_messages.isEmpty) return;
+    final texto = _messages
+        .map((m) => (m.isUser ? '🧑 Yo: ' : '🤖 Asistente: ') + m.content)
+        .join('\n\n');
+    Clipboard.setData(ClipboardData(text: '💬 Conversación con mi Asistente IA\n\n$texto'));
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('¡Conversación copiada! Pégala donde quieras 📋'),
+        duration: Duration(seconds: 2)));
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final puedeSugerir = !_loading &&
+        _messages.isNotEmpty &&
+        _messages.last.role == 'assistant' &&
+        _messages.last.content != '…' &&
+        !_messages.last.content.startsWith('⚠️');
 
     return Scaffold(
       appBar: AppBar(
@@ -200,8 +267,26 @@ class _ChatScreenState extends State<ChatScreen> {
           ],
         ),
         actions: [
+          // 🎭 Personalidad
+          PopupMenuButton<String>(
+            tooltip: 'Personalidad',
+            icon: const Icon(Icons.theater_comedy),
+            onSelected: (m) {
+              setState(() => _modo = m);
+              _guardarModo();
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text('Personalidad: ${_modos[m]}'),
+                  duration: const Duration(seconds: 1)));
+            },
+            itemBuilder: (_) => _modos.entries
+                .map((e) => PopupMenuItem(
+                      value: e.key,
+                      child: Text(e.value + (e.key == _modo ? '  ✓' : '')),
+                    ))
+                .toList(),
+          ),
           IconButton(
-            tooltip: 'Leer respuestas en voz alta',
+            tooltip: 'Leer en voz alta',
             icon: Icon(_leerEnVoz ? Icons.volume_up : Icons.volume_off),
             onPressed: () {
               setState(() => _leerEnVoz = !_leerEnVoz);
@@ -213,10 +298,15 @@ class _ChatScreenState extends State<ChatScreen> {
             icon: Icon(widget.isDark ? Icons.light_mode : Icons.dark_mode),
             onPressed: widget.onToggleTheme,
           ),
-          IconButton(
-            tooltip: 'Nueva conversación',
-            icon: const Icon(Icons.refresh),
-            onPressed: _nuevaConversacion,
+          PopupMenuButton<String>(
+            onSelected: (v) {
+              if (v == 'nueva') _nuevaConversacion();
+              if (v == 'compartir') _compartir();
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'nueva', child: Text('🔄 Nueva conversación')),
+              PopupMenuItem(value: 'compartir', child: Text('📤 Compartir')),
+            ],
           ),
         ],
       ),
@@ -240,7 +330,30 @@ class _ChatScreenState extends State<ChatScreen> {
                 ],
               ),
             ),
+          if (puedeSugerir) _barraSugerencias(colors),
           _barraEscribir(colors),
+        ],
+      ),
+    );
+  }
+
+  // 💡 Preguntas sugeridas + 🔄 regenerar.
+  Widget _barraSugerencias(ColorScheme colors) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 4,
+        children: [
+          ..._sugerencias.map((s) => ActionChip(
+                label: Text(s[0], style: const TextStyle(fontSize: 12.5)),
+                onPressed: () => _send(s[1]),
+              )),
+          ActionChip(
+            label: const Text('🔄 Otra respuesta', style: TextStyle(fontSize: 12.5)),
+            onPressed: _regenerar,
+          ),
         ],
       ),
     );
@@ -305,21 +418,52 @@ class _ChatScreenState extends State<ChatScreen> {
             child: m.isUser
                 ? Text(m.content,
                     style: const TextStyle(color: Colors.white, height: 1.4))
-                : _contenidoAsistente(m.content, colors),
+                : _mensajeAsistente(m.content, colors),
           ),
         );
       },
     );
   }
 
-  // ---------- #1 Código bonito: formatea la respuesta del asistente ----------
+  // Respuesta del asistente: contenido formateado + botón de copiar (#B).
+  Widget _mensajeAsistente(String texto, ColorScheme colors) {
+    final esReal = texto != '…' && !texto.startsWith('⚠️');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _contenidoAsistente(texto, colors),
+        if (esReal)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: InkWell(
+              onTap: () {
+                Clipboard.setData(ClipboardData(text: texto));
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('¡Respuesta copiada! 📋'),
+                    duration: Duration(seconds: 1)));
+              },
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.copy, size: 13, color: colors.primary),
+                  const SizedBox(width: 4),
+                  Text('Copiar',
+                      style: TextStyle(fontSize: 12, color: colors.primary)),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
   Widget _contenidoAsistente(String texto, ColorScheme colors) {
     final partes = texto.split('```');
     final hijos = <Widget>[];
     for (var i = 0; i < partes.length; i++) {
       final parte = partes[i];
       if (i.isOdd) {
-        // Bloque de código. Quitamos el nombre del lenguaje de la 1ª línea.
         var codigo = parte;
         final salto = codigo.indexOf('\n');
         if (salto != -1) {
@@ -337,8 +481,7 @@ class _ChatScreenState extends State<ChatScreen> {
       }
     }
     if (hijos.isEmpty) {
-      return Text(texto,
-          style: TextStyle(color: colors.onSurface, height: 1.4));
+      return Text(texto, style: TextStyle(color: colors.onSurface, height: 1.4));
     }
     return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -346,7 +489,6 @@ class _ChatScreenState extends State<ChatScreen> {
         children: hijos);
   }
 
-  // Negrita **...** y código en línea `...`.
   List<InlineSpan> _spans(String text, ColorScheme colors) {
     final spans = <InlineSpan>[];
     final regex = RegExp(r'\*\*(.+?)\*\*|`(.+?)`');
@@ -447,11 +589,12 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ],
             const SizedBox(width: 4),
+            // ⏹️ Mientras carga = botón de parar; si no = enviar.
             CircleAvatar(
-              backgroundColor: colors.primary,
+              backgroundColor: _loading ? Colors.red : colors.primary,
               child: IconButton(
-                icon: const Icon(Icons.send, color: Colors.white),
-                onPressed: () => _send(_controller.text),
+                icon: Icon(_loading ? Icons.stop : Icons.send, color: Colors.white),
+                onPressed: _loading ? _parar : () => _send(_controller.text),
               ),
             ),
           ],

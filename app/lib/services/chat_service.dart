@@ -27,11 +27,14 @@ class ChatService {
 
   /// Envía la conversación y va devolviendo la respuesta trozo a trozo
   /// (streaming con Server-Sent Events), igual que la web.
-  Stream<String> streamMessages(List<Message> messages) async* {
+  Stream<String> streamMessages(List<Message> messages,
+      {String modo = 'amigable'}) async* {
     final request = http.Request('POST', Uri.parse('$baseUrl/chat/stream'));
     request.headers['Content-Type'] = 'application/json';
-    request.body =
-        jsonEncode({'messages': messages.map((m) => m.toJson()).toList()});
+    request.body = jsonEncode({
+      'messages': messages.map((m) => m.toJson()).toList(),
+      'modo': modo,
+    });
 
     final response = await client.send(request);
     if (response.statusCode != 200) {
