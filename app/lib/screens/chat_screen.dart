@@ -45,6 +45,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   static const _modos = {
     'amigable': '😊 Amigable',
+    'chapin': '🇬🇹 Chapín',
+    'tutor': '🎓 Tutor de tareas',
     'profesor': '👨‍🏫 Profesor',
     'programador': '💻 Programador',
     'gracioso': '😄 Gracioso',
