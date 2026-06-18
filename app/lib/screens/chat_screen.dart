@@ -47,6 +47,7 @@ class _ChatScreenState extends State<ChatScreen> {
     'amigable': '😊 Amigable',
     'chapin': '🇬🇹 Chapín',
     'tutor': '🎓 Tutor de tareas',
+    'proyecto': '🛠️ Modo Proyecto',
     'profesor': '👨‍🏫 Profesor',
     'programador': '💻 Programador',
     'gracioso': '😄 Gracioso',
