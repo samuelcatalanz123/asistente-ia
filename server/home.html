@@ -143,11 +143,21 @@
       font-size: 0.92em;
     }
 
-    #ejemplos {
+    #ejemplos, #sugerencias {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
       padding: 0 18px 8px;
+    }
+    #buscarConv {
+      margin: 0 12px 10px;
+      padding: 9px 12px;
+      border: 1px solid var(--borde);
+      border-radius: 10px;
+      font-size: 14px;
+      outline: none;
+      background: var(--fondo);
+      color: var(--texto-ia);
     }
     .chip {
       background: var(--chip);
@@ -346,6 +356,7 @@
 
   <div id="mensajes"></div>
   <div id="ejemplos"></div>
+  <div id="sugerencias"></div>
 
   <form id="formulario">
     <input id="texto" type="text" placeholder="Escribe tu mensaje..." autocomplete="off" />
@@ -358,6 +369,7 @@
   <nav id="panel">
     <h3>💬 Mis conversaciones</h3>
     <button id="nuevaConv">➕ Nueva conversación</button>
+    <input id="buscarConv" type="text" placeholder="🔍 Buscar conversación..." />
     <div id="listaConvs"></div>
   </nav>
 
@@ -413,6 +425,8 @@
     const fondoPanel = document.getElementById("fondoPanel");
     const nuevaConv = document.getElementById("nuevaConv");
     const listaConvs = document.getElementById("listaConvs");
+    const sugerencias = document.getElementById("sugerencias");
+    const buscarConv = document.getElementById("buscarConv");
 
     const CLAVE_CONVS = "conversaciones";
     const CLAVE_ACTUAL = "conversacion-actual";
@@ -486,7 +500,16 @@
     }
     function pintarLista() {
       listaConvs.innerHTML = "";
-      conversaciones.forEach((c) => {
+      // #D — filtro de búsqueda: por título o por contenido de los mensajes.
+      const q = (buscarConv.value || "").toLowerCase().trim();
+      const lista = !q
+        ? conversaciones
+        : conversaciones.filter(
+            (c) =>
+              c.titulo.toLowerCase().includes(q) ||
+              c.mensajes.some((m) => m.content.toLowerCase().includes(q))
+          );
+      lista.forEach((c) => {
         const div = document.createElement("div");
         div.className = "conv" + (c.id === idActual ? " activa" : "");
         div.onclick = () => seleccionar(c.id);
@@ -582,6 +605,46 @@
         chip.addEventListener("click", () => enviarMensaje(p));
         ejemplos.appendChild(chip);
       });
+    }
+
+    // #A — Preguntas sugeridas + #B — Regenerar (tras cada respuesta).
+    const SUGERENCIAS = [
+      { etiqueta: "📝 Dame un ejemplo", texto: "Dame un ejemplo" },
+      { etiqueta: "🔁 Explícamelo más simple", texto: "Explícamelo más simple" },
+      { etiqueta: "➡️ ¿Qué más?", texto: "¿Qué más me puedes decir sobre esto?" },
+    ];
+    function limpiarSugerencias() {
+      sugerencias.innerHTML = "";
+    }
+    function mostrarSugerencias() {
+      sugerencias.innerHTML = "";
+      SUGERENCIAS.forEach((s) => {
+        const chip = document.createElement("div");
+        chip.className = "chip";
+        chip.textContent = s.etiqueta;
+        chip.addEventListener("click", () => enviarMensaje(s.texto));
+        sugerencias.appendChild(chip);
+      });
+      // Botón regenerar
+      const reg = document.createElement("div");
+      reg.className = "chip";
+      reg.textContent = "🔄 Otra respuesta";
+      reg.addEventListener("click", regenerar);
+      sugerencias.appendChild(reg);
+    }
+
+    // #B — Regenerar la última respuesta (vuelve a preguntar lo mismo).
+    function regenerar() {
+      if (cargando) return;
+      const h = historial();
+      if (!h.length) return;
+      if (h[h.length - 1].role === "assistant") h.pop(); // quita la respuesta
+      const ultimoUser = h.length ? h[h.length - 1] : null;
+      if (!ultimoUser || ultimoUser.role !== "user") return;
+      h.pop(); // enviarMensaje lo vuelve a añadir
+      guardarTodo();
+      render();
+      enviarMensaje(ultimoUser.content);
     }
 
     // ---------- Voz (#3) ----------
@@ -714,6 +777,7 @@
       if (!contenido || cargando) return;
 
       ejemplos.innerHTML = "";
+      limpiarSugerencias();
       pintar("user", contenido);
       historial().push({ role: "user", content: contenido });
       // El título de la conversación = primer mensaje del usuario.
@@ -784,6 +848,7 @@
           historial().push({ role: "assistant", content: acumulado });
           guardarTodo();
           hablar(acumulado);
+          mostrarSugerencias(); // #A + #B: preguntas sugeridas y regenerar
         }
       } catch (err) {
         if (err.name === "AbortError") {
@@ -816,6 +881,7 @@
 
     btnMenu.addEventListener("click", abrirPanel);
     fondoPanel.addEventListener("click", cerrarPanel);
+    buscarConv.addEventListener("input", pintarLista); // #D — buscar
     nuevaConv.addEventListener("click", () => { crearNueva(); cerrarPanel(); });
     btnNuevoRapido.addEventListener("click", () => crearNueva());
 
