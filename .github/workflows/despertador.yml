@@ -1,0 +1,16 @@
+name: Despertador (keep-alive)
+
+# Visita la app cada 10 minutos para que el servidor gratis de Render no se duerma.
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {} # también se puede ejecutar a mano
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Despertar la app
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 90 https://asistente-ia-xh5v.onrender.com/ || true)
+          echo "La app respondió con código: $code"
