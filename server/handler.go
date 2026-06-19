@@ -41,7 +41,7 @@ func NewChatHandler(ai AIClient) http.HandlerFunc {
 		if err != nil {
 			log.Printf("error de groq: %v", err) // queda en los logs para depurar
 			writeJSON(w, http.StatusBadGateway, ErrorResponse{
-				Error: "DIAG: " + err.Error()})
+				Error: "El asistente está despertando 😴. Espera unos segundos e inténtalo de nuevo."})
 			return
 		}
 		writeJSON(w, http.StatusOK, ChatResponse{Reply: reply})

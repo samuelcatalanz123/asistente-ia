@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 )
 
 // StreamingAIClient es un cliente de IA capaz de entregar la respuesta a trozos.
@@ -50,12 +51,24 @@ func NewStreamChatHandler(ai StreamingAIClient) http.HandlerFunc {
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("Connection", "keep-alive")
 
-		err := ai.StreamComplete(mensajes, req.Modelo, func(chunk string) {
-			sse(w, flusher, map[string]string{"t": chunk})
-		})
-		if err != nil {
-			log.Printf("error de groq (stream): %v", err)
-			sse(w, flusher, map[string]string{"error": "El asistente estaba descansando 😴 y se está despertando. Espera unos segundos e inténtalo de nuevo."})
+		// Reintenta hasta 3 veces si Groq falla ANTES de mandar nada (típico
+		// cuando el servidor acaba de despertar). Si ya empezó a responder, no
+		// se reintenta para no repetir texto.
+		var enviado bool
+		var err error
+		for intento := 1; intento <= 3; intento++ {
+			err = ai.StreamComplete(mensajes, req.Modelo, func(chunk string) {
+				enviado = true
+				sse(w, flusher, map[string]string{"t": chunk})
+			})
+			if err == nil || enviado {
+				break
+			}
+			log.Printf("groq falló (intento %d): %v", intento, err)
+			time.Sleep(time.Duration(intento) * 700 * time.Millisecond)
+		}
+		if err != nil && !enviado {
+			sse(w, flusher, map[string]string{"error": "El asistente está despertando 😴. Espera unos segundos e inténtalo de nuevo."})
 		}
 		// Señal de fin para que el navegador sepa que terminó.
 		fmt.Fprint(w, "data: [DONE]\n\n")
