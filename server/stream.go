@@ -68,7 +68,7 @@ func NewStreamChatHandler(ai StreamingAIClient) http.HandlerFunc {
 			time.Sleep(time.Duration(intento) * 700 * time.Millisecond)
 		}
 		if err != nil && !enviado {
-			sse(w, flusher, map[string]string{"error": "El asistente está despertando 😴. Espera unos segundos e inténtalo de nuevo."})
+			sse(w, flusher, map[string]string{"error": "DIAG: " + err.Error()})
 		}
 		// Señal de fin para que el navegador sepa que terminó.
 		fmt.Fprint(w, "data: [DONE]\n\n")
