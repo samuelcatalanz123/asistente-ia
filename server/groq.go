@@ -82,7 +82,7 @@ func (c *GroqClient) Complete(messages []Message, modelo string) (string, error)
 		return "", fmt.Errorf("reading groq response: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("groq error %d", resp.StatusCode)
+		return "", fmt.Errorf("groq %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
 	}
 	var parsed groqResponse
 	if err := json.Unmarshal(body, &parsed); err != nil {
@@ -114,7 +114,8 @@ func (c *GroqClient) StreamComplete(messages []Message, modelo string, onChunk f
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("groq error %d", resp.StatusCode)
+		b, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("groq %d: %s", resp.StatusCode, strings.TrimSpace(string(b)))
 	}
 
 	// Groq envía líneas tipo "data: {json}" y termina con "data: [DONE]".

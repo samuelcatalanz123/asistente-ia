@@ -38,7 +38,8 @@ func NewChatHandler(ai AIClient) http.HandlerFunc {
 		mensajes := append([]Message{{Role: "system", Content: promptDeModo(req.Modo)}}, req.Messages...)
 		reply, err := ai.Complete(mensajes, req.Modelo)
 		if err != nil {
-			writeJSON(w, http.StatusBadGateway, ErrorResponse{Error: "la IA no respondió, inténtalo de nuevo"})
+			// TEMPORAL (diagnóstico): mostramos el error real de Groq.
+			writeJSON(w, http.StatusBadGateway, ErrorResponse{Error: "DIAGNÓSTICO: " + err.Error()})
 			return
 		}
 		writeJSON(w, http.StatusOK, ChatResponse{Reply: reply})
