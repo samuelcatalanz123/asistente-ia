@@ -72,7 +72,8 @@ func NewStreamChatHandler(ai StreamingAIClient) http.HandlerFunc {
 			time.Sleep(400 * time.Millisecond)
 		}
 		if err != nil && !enviado {
-			sse(w, flusher, map[string]string{"error": "El asistente está ocupado ahora mismo 😅. Espera un momento e inténtalo de nuevo."})
+			log.Printf("groq agotado en todos los modelos: %v", err)
+			sse(w, flusher, map[string]string{"error": "El asistente está muy ocupado ahora mismo 😅. Espera un momentito e inténtalo de nuevo."})
 		}
 		// Señal de fin para que el navegador sepa que terminó.
 		fmt.Fprint(w, "data: [DONE]\n\n")
