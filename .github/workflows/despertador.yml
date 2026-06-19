@@ -3,7 +3,7 @@ name: Despertador (keep-alive)
 # Visita la app cada 10 minutos para que el servidor gratis de Render no se duerma.
 on:
   schedule:
-    - cron: "*/10 * * * *"
+    - cron: "*/5 * * * *"
   workflow_dispatch: {} # también se puede ejecutar a mano
 
 jobs:
