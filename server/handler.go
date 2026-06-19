@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 )
 
@@ -38,8 +39,9 @@ func NewChatHandler(ai AIClient) http.HandlerFunc {
 		mensajes := append([]Message{{Role: "system", Content: promptDeModo(req.Modo)}}, req.Messages...)
 		reply, err := ai.Complete(mensajes, req.Modelo)
 		if err != nil {
-			// TEMPORAL (diagnóstico): mostramos el error real de Groq.
-			writeJSON(w, http.StatusBadGateway, ErrorResponse{Error: "DIAGNÓSTICO: " + err.Error()})
+			log.Printf("error de groq: %v", err) // queda en los logs para depurar
+			writeJSON(w, http.StatusBadGateway, ErrorResponse{
+				Error: "El asistente estaba descansando 😴 y se está despertando. Espera unos segundos e inténtalo de nuevo."})
 			return
 		}
 		writeJSON(w, http.StatusOK, ChatResponse{Reply: reply})

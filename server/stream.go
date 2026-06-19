@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 )
 
@@ -53,7 +54,8 @@ func NewStreamChatHandler(ai StreamingAIClient) http.HandlerFunc {
 			sse(w, flusher, map[string]string{"t": chunk})
 		})
 		if err != nil {
-			sse(w, flusher, map[string]string{"error": "la IA no respondió, inténtalo de nuevo"})
+			log.Printf("error de groq (stream): %v", err)
+			sse(w, flusher, map[string]string{"error": "El asistente estaba descansando 😴 y se está despertando. Espera unos segundos e inténtalo de nuevo."})
 		}
 		// Señal de fin para que el navegador sepa que terminó.
 		fmt.Fprint(w, "data: [DONE]\n\n")
