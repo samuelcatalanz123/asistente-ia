@@ -38,10 +38,15 @@ func NewChatHandler(ai AIClient) http.HandlerFunc {
 		// Anteponemos la personalidad elegida (modo) como mensaje "system".
 		mensajes := append([]Message{{Role: "system", Content: promptDeModo(req.Modo)}}, req.Messages...)
 		reply, err := ai.Complete(mensajes, req.Modelo)
+		if err != nil && req.Modelo != "rapido" {
+			// Si el modelo grande falló (p. ej. agotó su cuota), probamos el rápido.
+			log.Printf("groq falló con %q, probando 'rapido': %v", req.Modelo, err)
+			reply, err = ai.Complete(mensajes, "rapido")
+		}
 		if err != nil {
-			log.Printf("error de groq: %v", err) // queda en los logs para depurar
+			log.Printf("error de groq: %v", err)
 			writeJSON(w, http.StatusBadGateway, ErrorResponse{
-				Error: "El asistente está despertando 😴. Espera unos segundos e inténtalo de nuevo."})
+				Error: "El asistente está ocupado ahora mismo 😅. Espera un momento e inténtalo de nuevo."})
 			return
 		}
 		writeJSON(w, http.StatusOK, ChatResponse{Reply: reply})

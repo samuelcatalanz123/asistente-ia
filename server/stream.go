@@ -51,24 +51,28 @@ func NewStreamChatHandler(ai StreamingAIClient) http.HandlerFunc {
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("Connection", "keep-alive")
 
-		// Reintenta hasta 3 veces si Groq falla ANTES de mandar nada (típico
-		// cuando el servidor acaba de despertar). Si ya empezó a responder, no
-		// se reintenta para no repetir texto.
+		// Modelos a intentar: el que pidió el usuario y, si falla (p. ej. el
+		// grande agotó su cuota diaria de Groq), el "rápido", que tiene mucho
+		// más límite gratis. Así la app sigue respondiendo siempre.
+		modelos := []string{req.Modelo}
+		if req.Modelo != "rapido" {
+			modelos = append(modelos, "rapido")
+		}
 		var enviado bool
 		var err error
-		for intento := 1; intento <= 3; intento++ {
-			err = ai.StreamComplete(mensajes, req.Modelo, func(chunk string) {
+		for _, modelo := range modelos {
+			err = ai.StreamComplete(mensajes, modelo, func(chunk string) {
 				enviado = true
 				sse(w, flusher, map[string]string{"t": chunk})
 			})
 			if err == nil || enviado {
-				break
+				break // respondió (o ya empezó): no probamos otro modelo
 			}
-			log.Printf("groq falló (intento %d): %v", intento, err)
-			time.Sleep(time.Duration(intento) * 700 * time.Millisecond)
+			log.Printf("groq falló con modelo %s: %v", modelo, err)
+			time.Sleep(400 * time.Millisecond)
 		}
 		if err != nil && !enviado {
-			sse(w, flusher, map[string]string{"error": "DIAG: " + err.Error()})
+			sse(w, flusher, map[string]string{"error": "El asistente está ocupado ahora mismo 😅. Espera un momento e inténtalo de nuevo."})
 		}
 		// Señal de fin para que el navegador sepa que terminó.
 		fmt.Fprint(w, "data: [DONE]\n\n")
