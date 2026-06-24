@@ -166,10 +166,59 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
+  // Si el mensaje pide una imagen ("imagen de un gato", "dibuja…"), devuelve
+  // el TEMA de la imagen. Si no pide imagen, devuelve null.
+  String? _temaDeImagen(String texto) {
+    final t = texto.toLowerCase().trim();
+    final pideImagen = RegExp(
+            r'\b(imagen|im[áa]genes|foto|fotos|fotograf[íi]a|dib[uú]j|il[uú]stra)')
+        .hasMatch(t);
+    if (!pideImagen) return null;
+
+    // El tema suele ir después de "de " / "de la " / "de los "…
+    final m = RegExp(r'\bde(?:\s+(?:la|el|los|las)\b)?\s+(.+)$').firstMatch(t);
+    String tema;
+    if (m != null) {
+      tema = m.group(1)!;
+    } else {
+      // Si no hay "de", quita las palabras de "pedir" y usa lo que quede.
+      tema = t.replaceAll(
+          RegExp(
+              r'\b(ponme|p[oó]n|hazme|haz|dame|mu[eé]strame|ens[eé][ñn]ame|gen[eé]ra(?:me)?|cr[eé]a(?:me)?|dib[uú]ja(?:me)?|il[uú]stra(?:me)?|quiero|una|un|unos|unas|por favor|porfa|imagen|im[áa]genes|foto|fotos|fotograf[íi]a)\b'),
+          ' ');
+    }
+    tema = tema.replaceAll(RegExp(r'\s+'), ' ').trim();
+    return tema.isEmpty ? null : tema;
+  }
+
+  // Genera y muestra una imagen (con Pollinations, gratis y sin clave).
+  void _mostrarImagen(String texto, String tema) {
+    final url =
+        'https://image.pollinations.ai/prompt/${Uri.encodeComponent(tema)}';
+    setState(() {
+      _messages.add(Message(role: 'user', content: texto));
+      _messages.add(Message(
+        role: 'assistant',
+        content: 'Aquí tienes una imagen de "$tema" 🎨',
+        imageUrl: url,
+      ));
+      _controller.clear();
+    });
+    _guardar();
+    _bajarDelTodo();
+  }
+
   // ---------- Enviar (streaming con personalidad y botón de parar) ----------
   Future<void> _send(String text) async {
     text = text.trim();
     if (text.isEmpty || _loading) return;
+
+    // ¿Pide una imagen? → la generamos y mostramos (sin molestar a Groq).
+    final tema = _temaDeImagen(text);
+    if (tema != null) {
+      _mostrarImagen(text, tema);
+      return;
+    }
 
     setState(() {
       _messages.add(Message(role: 'user', content: text));
@@ -421,22 +470,59 @@ class _ChatScreenState extends State<ChatScreen> {
             child: m.isUser
                 ? Text(m.content,
                     style: const TextStyle(color: Colors.white, height: 1.4))
-                : _mensajeAsistente(m.content, colors),
+                : _mensajeAsistente(m, colors),
           ),
         );
       },
     );
   }
 
-  // Respuesta del asistente: contenido formateado + botón de copiar (#B).
-  Widget _mensajeAsistente(String texto, ColorScheme colors) {
+  // Imagen generada por IA, con esquinas redondeadas y aviso mientras carga.
+  Widget _imagenGenerada(String url) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Image.network(
+        url,
+        width: 260,
+        fit: BoxFit.cover,
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) return child;
+          return Container(
+            width: 260,
+            height: 200,
+            alignment: Alignment.center,
+            child: const Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 10),
+                Text('Generando imagen… 🎨'),
+              ],
+            ),
+          );
+        },
+        errorBuilder: (c, e, s) => const Padding(
+          padding: EdgeInsets.all(8),
+          child: Text('No pude cargar la imagen 😕'),
+        ),
+      ),
+    );
+  }
+
+  // Respuesta del asistente: texto formateado y/o imagen + botón de copiar.
+  Widget _mensajeAsistente(Message m, ColorScheme colors) {
+    final texto = m.content;
     final esReal = texto != '…' && !texto.startsWith('⚠️');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        _contenidoAsistente(texto, colors),
-        if (esReal)
+        if (texto.isNotEmpty) _contenidoAsistente(texto, colors),
+        if (m.imageUrl != null) ...[
+          const SizedBox(height: 8),
+          _imagenGenerada(m.imageUrl!),
+        ],
+        if (esReal && m.imageUrl == null)
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: InkWell(

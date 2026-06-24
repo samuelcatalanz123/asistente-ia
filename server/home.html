@@ -219,6 +219,7 @@
     }
     #enviar:hover { background: var(--azul-osc); }
     #enviar.parar { background: #ff4d4d; }
+    .img-generada { display: block; margin-top: 8px; max-width: 280px; width: 100%; border-radius: 12px; }
 
     /* Panel lateral de conversaciones */
     #fondoPanel {
@@ -631,6 +632,43 @@
       return div;
     }
 
+    // Muestra una imagen generada por IA, con su texto encima.
+    function pintarImagen(texto, url, hora) {
+      const div = document.createElement("div");
+      div.className = "burbuja ia";
+      if (texto) {
+        const cap = document.createElement("div");
+        cap.textContent = texto;
+        div.appendChild(cap);
+      }
+      const img = document.createElement("img");
+      img.src = url;
+      img.alt = texto || "imagen";
+      img.className = "img-generada";
+      img.loading = "lazy";
+      div.appendChild(img);
+      agregarHora(div, hora);
+      mensajes.appendChild(div);
+      mensajes.scrollTop = mensajes.scrollHeight;
+      return div;
+    }
+
+    // Si el mensaje pide una imagen ("imagen de un gato", "dibuja…"), devuelve
+    // el TEMA. Si no pide imagen, devuelve null.
+    function temaDeImagen(texto) {
+      const t = texto.toLowerCase().trim();
+      if (!/\b(imagen|im[áa]genes|foto|fotos|fotograf[íi]a|dib[uú]j|il[uú]stra)/.test(t)) return null;
+      const m = t.match(/\bde(?:\s+(?:la|el|los|las)\b)?\s+(.+)$/);
+      let tema;
+      if (m) {
+        tema = m[1];
+      } else {
+        tema = t.replace(/\b(ponme|p[oó]n|hazme|haz|dame|mu[eé]strame|ens[eé][ñn]ame|gen[eé]ra(?:me)?|cr[eé]a(?:me)?|dib[uú]ja(?:me)?|il[uú]stra(?:me)?|quiero|una|un|unos|unas|por favor|porfa|imagen|im[áa]genes|foto|fotos|fotograf[íi]a)\b/g, " ");
+      }
+      tema = tema.replace(/\s+/g, " ").trim();
+      return tema || null;
+    }
+
     // Vuelve a dibujar la conversación actual.
     function render() {
       mensajes.innerHTML = "";
@@ -640,7 +678,7 @@
         mostrarEjemplos();
       } else {
         ejemplos.innerHTML = "";
-        h.forEach((m) => pintar(m.role, m.content, m.hora));
+        h.forEach((m) => m.imageUrl ? pintarImagen(m.content, m.imageUrl, m.hora) : pintar(m.role, m.content, m.hora));
       }
     }
 
@@ -846,6 +884,19 @@
         historial().push({ role: "assistant", content: conf });
         guardarTodo();
         hablar(conf);
+        texto.focus();
+        return;
+      }
+
+      // ¿Pide una imagen? → la generamos y mostramos (sin molestar a la IA).
+      const temaImg = temaDeImagen(contenido);
+      if (temaImg) {
+        const url = "https://image.pollinations.ai/prompt/" + encodeURIComponent(temaImg);
+        const horaImg = horaActual();
+        const cap = 'Aquí tienes una imagen de "' + temaImg + '" 🎨';
+        pintarImagen(cap, url, horaImg);
+        historial().push({ role: "assistant", content: cap, imageUrl: url, hora: horaImg });
+        guardarTodo();
         texto.focus();
         return;
       }
