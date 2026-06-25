@@ -226,6 +226,9 @@
     .menu-foto { position: fixed; left: 10px; bottom: 70px; background: var(--burbuja-ia, var(--chip)); border: 1px solid var(--borde); border-radius: 12px; box-shadow: 0 6px 18px rgba(0,0,0,.18); padding: 6px; display: flex; flex-direction: column; gap: 4px; z-index: 60; }
     .menu-foto button { border: none; background: transparent; padding: 10px 16px; text-align: left; font-size: 14px; cursor: pointer; border-radius: 8px; color: var(--chip-texto); white-space: nowrap; }
     .menu-foto button:active, .menu-foto button:hover { background: var(--azul); color: #fff; }
+    #accionesRapidas { display: flex; gap: 8px; padding: 0 12px 4px; flex-wrap: wrap; }
+    #accionesRapidas button { border: 1px solid var(--borde); background: var(--chip); color: var(--chip-texto); border-radius: 16px; padding: 6px 14px; font-size: 13px; cursor: pointer; }
+    #accionesRapidas button:hover { background: var(--azul); color: #fff; }
 
     /* Panel lateral de conversaciones */
     #fondoPanel {
@@ -375,6 +378,10 @@
   <div id="menuFoto" class="menu-foto" style="display:none">
     <button type="button" id="optCamara">📸 Tomar foto</button>
     <button type="button" id="optGaleria">🖼️ Desde galería</button>
+  </div>
+  <div id="accionesRapidas">
+    <button type="button" id="btnResumir">📝 Resumir</button>
+    <button type="button" id="btnTraducir">🌐 Traducir</button>
   </div>
   <form id="formulario">
     <input id="archivoFoto" type="file" accept="image/*" style="display:none" />
@@ -760,6 +767,35 @@
     archivoFoto.addEventListener("change", () => procesarFoto(archivoFoto));
     archivoCamara.addEventListener("change", () => procesarFoto(archivoCamara));
 
+    // ----- Botones rápidos: Resumir y Traducir -----
+    const btnResumir = document.getElementById("btnResumir");
+    const btnTraducir = document.getElementById("btnTraducir");
+
+    // Usa el texto del campo; si está vacío, la última respuesta del asistente.
+    function accionRapida(tipo) {
+      let base = texto.value.trim();
+      if (!base) {
+        const h = historial();
+        const ultimaIA = [...h].reverse().find(
+          (m) => m.role === "assistant" && m.content && !m.imageUrl
+        );
+        if (!ultimaIA) {
+          alert("Escribe o pega un texto primero ✍️");
+          return;
+        }
+        base = ultimaIA.content;
+      }
+      const instruccion =
+        tipo === "resumir"
+          ? "Resume esto en 3 líneas, claro y sencillo:\n\n" + base
+          : "Traduce esto al inglés (o al español si ya está en inglés). Devuelve solo la traducción:\n\n" +
+            base;
+      texto.value = "";
+      enviarMensaje(instruccion, true); // true = no lo confundas con comandos
+    }
+    btnResumir.addEventListener("click", () => accionRapida("resumir"));
+    btnTraducir.addEventListener("click", () => accionRapida("traducir"));
+
     function mostrarPreviewFoto() {
       previewFoto.innerHTML = "";
       if (!imagenPendiente) return;
@@ -986,7 +1022,7 @@
       return CURSOS.find((c) => c.re.test(t)) || null;
     }
 
-    async function enviarMensaje(contenido) {
+    async function enviarMensaje(contenido, saltarComandos) {
       contenido = contenido.trim();
       const foto = imagenPendiente;
       if ((!contenido && !foto) || cargando) return;
@@ -1009,8 +1045,9 @@
       guardarTodo();
       texto.value = "";
 
-      // Si NO hay foto adjunta, revisamos comandos de curso e imágenes generadas.
-      if (!foto) {
+      // Si NO hay foto adjunta (ni venimos de un botón rápido), revisamos
+      // comandos de curso e imágenes generadas.
+      if (!foto && !saltarComandos) {
         // ¿Es un comando para abrir un curso/página?
         const curso = detectarCurso(contenido);
         if (curso) {
