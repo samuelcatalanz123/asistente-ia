@@ -185,16 +185,22 @@
       padding: 12px;
       border-top: 1px solid var(--borde);
       background: var(--barra);
+      align-items: flex-end;
     }
     #texto {
       flex: 1;
       padding: 12px 16px;
       border: 1px solid var(--borde);
-      border-radius: 24px;
+      border-radius: 22px;
       font-size: 15px;
       outline: none;
       background: var(--fondo);
       color: var(--texto-ia);
+      font-family: inherit;
+      line-height: 1.4;
+      resize: none;
+      max-height: 140px;
+      overflow-y: auto;
     }
     #texto:focus { border-color: var(--azul); }
     #micro, #btnFoto {
@@ -421,7 +427,7 @@
     <input id="archivoFoto" type="file" accept="image/*" style="display:none" />
     <input id="archivoCamara" type="file" accept="image/*" capture="environment" style="display:none" />
     <button id="btnFoto" type="button" title="Subir o tomar una foto">📷</button>
-    <input id="texto" type="text" placeholder="Escribe tu mensaje..." autocomplete="off" />
+    <textarea id="texto" rows="1" placeholder="Escribe tu mensaje...  (Enter envía · Shift+Enter nueva línea)" autocomplete="off"></textarea>
     <button id="micro" type="button" title="Hablar por voz">🎤</button>
     <button id="enviar" type="submit">Enviar</button>
   </form>
@@ -903,6 +909,7 @@
           : "Traduce esto al inglés (o al español si ya está en inglés). Devuelve solo la traducción:\n\n" +
             base;
       texto.value = "";
+      ajustarAlto();
       enviarMensaje(instruccion, true); // true = no lo confundas con comandos
     }
     btnResumir.addEventListener("click", () => accionRapida("resumir"));
@@ -1216,6 +1223,7 @@
       guardarTodo();
       render();
       texto.value = ultimoUser.content;
+      ajustarAlto();
       texto.focus();
     }
 
@@ -1384,6 +1392,7 @@
       }
       guardarTodo();
       texto.value = "";
+      ajustarAlto();
 
       // Si NO hay foto adjunta (ni venimos de un botón rápido), revisamos
       // comandos de curso e imágenes generadas.
@@ -1489,6 +1498,21 @@
     }
 
     // ---------- Eventos ----------
+    // El textarea crece solo con el texto (hasta un máximo); al vaciarlo, vuelve a 1 línea.
+    function ajustarAlto() {
+      texto.style.height = "auto";
+      texto.style.height = Math.min(texto.scrollHeight, 140) + "px";
+    }
+    texto.addEventListener("input", ajustarAlto);
+    // En PC: Enter = enviar, Shift+Enter = nueva línea.
+    // En móvil (pantalla táctil): Enter = nueva línea, y se envía con el botón ▶.
+    const esTactil = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+    texto.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey && !esTactil) {
+        e.preventDefault();
+        if (!cargando) enviarMensaje(texto.value);
+      }
+    });
     formulario.addEventListener("submit", (e) => {
       e.preventDefault();
       if (cargando) {
@@ -1590,6 +1614,7 @@
       rec.onresult = (e) => {
         const dicho = e.results[0][0].transcript;
         texto.value = dicho;
+        ajustarAlto();
         micro.classList.remove("grabando");
         if (modoVoz) {
           enviarMensaje(dicho); // manos libres: se envía solo
