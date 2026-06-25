@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -99,7 +100,7 @@ type groqStreamChunk struct {
 	} `json:"choices"`
 }
 
-func (c *GroqClient) Complete(messages []Message, modelo string) (string, error) {
+func (c *GroqClient) Complete(ctx context.Context, messages []Message, modelo string) (string, error) {
 	ms, hayImagen := aGroqMessages(messages)
 	model := modeloDeGroq(modelo)
 	if hayImagen {
@@ -109,7 +110,7 @@ func (c *GroqClient) Complete(messages []Message, modelo string) (string, error)
 	if err != nil {
 		return "", err
 	}
-	req, err := http.NewRequest(http.MethodPost, c.URL, bytes.NewReader(payload))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.URL, bytes.NewReader(payload))
 	if err != nil {
 		return "", err
 	}
@@ -141,7 +142,7 @@ func (c *GroqClient) Complete(messages []Message, modelo string) (string, error)
 
 // StreamComplete pide la respuesta en modo streaming y llama a onChunk con
 // cada trocito de texto según va llegando desde Groq.
-func (c *GroqClient) StreamComplete(messages []Message, modelo string, onChunk func(string)) error {
+func (c *GroqClient) StreamComplete(ctx context.Context, messages []Message, modelo string, onChunk func(string)) error {
 	ms, hayImagen := aGroqMessages(messages)
 	model := modeloDeGroq(modelo)
 	if hayImagen {
@@ -151,7 +152,7 @@ func (c *GroqClient) StreamComplete(messages []Message, modelo string, onChunk f
 	if err != nil {
 		return err
 	}
-	req, err := http.NewRequest(http.MethodPost, c.URL, bytes.NewReader(payload))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.URL, bytes.NewReader(payload))
 	if err != nil {
 		return err
 	}

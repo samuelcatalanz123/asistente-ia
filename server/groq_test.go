@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -26,7 +27,7 @@ func TestGroqClientEnviaLosMensajes(t *testing.T) {
 		{Role: "system", Content: "eres amable"},
 		{Role: "user", Content: "hola"},
 	}
-	reply, err := client.Complete(entrada, "inteligente")
+	reply, err := client.Complete(context.Background(), entrada, "inteligente")
 	if err != nil {
 		t.Fatalf("no esperaba error: %v", err)
 	}
@@ -67,7 +68,7 @@ func TestGroqClientStreamParsea(t *testing.T) {
 	client.URL = server.URL
 
 	var juntado string
-	err := client.StreamComplete([]Message{{Role: "user", Content: "hola"}}, "inteligente", func(c string) {
+	err := client.StreamComplete(context.Background(), []Message{{Role: "user", Content: "hola"}}, "inteligente", func(c string) {
 		juntado += c
 	})
 	if err != nil {

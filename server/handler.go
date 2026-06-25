@@ -49,11 +49,12 @@ func NewChatHandler(ai AIClient) http.HandlerFunc {
 		}
 		// Anteponemos la personalidad elegida (modo) como mensaje "system".
 		mensajes := append([]Message{{Role: "system", Content: promptDeModo(req.Modo)}}, req.Messages...)
-		reply, err := ai.Complete(mensajes, req.Modelo)
-		if err != nil && req.Modelo != "rapido" {
+		reply, err := ai.Complete(r.Context(), mensajes, req.Modelo)
+		if err != nil && req.Modelo != "rapido" && r.Context().Err() == nil {
 			// Si el modelo grande falló (p. ej. agotó su cuota), probamos el rápido.
+			// (Salvo que el cliente ya se haya ido: ahí no reintentamos.)
 			log.Printf("groq falló con %q, probando 'rapido': %v", req.Modelo, err)
-			reply, err = ai.Complete(mensajes, "rapido")
+			reply, err = ai.Complete(r.Context(), mensajes, "rapido")
 		}
 		if err != nil {
 			log.Printf("error de groq: %v", err)

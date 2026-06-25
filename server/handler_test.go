@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -49,14 +50,38 @@ func TestHealthHandlerIncludesVersionAndUptime(t *testing.T) {
 
 // fakeAI is a test double for AIClient.
 type fakeAI struct {
-	reply string
-	err   error
-	got   []Message
+	reply  string
+	err    error
+	got    []Message
+	gotCtx context.Context
 }
 
-func (f *fakeAI) Complete(messages []Message, modelo string) (string, error) {
+func (f *fakeAI) Complete(ctx context.Context, messages []Message, modelo string) (string, error) {
+	f.gotCtx = ctx
 	f.got = messages
 	return f.reply, f.err
+}
+
+// El handler debe propagar el context de la petición HTTP hasta la llamada a la
+// IA (así, si el cliente se va, se puede cancelar la petición a Groq).
+func TestChatHandlerPropagaContext(t *testing.T) {
+	fake := &fakeAI{reply: "ok"}
+	handler := NewChatHandler(fake)
+
+	type clave struct{}
+	ctx := context.WithValue(context.Background(), clave{}, "sí")
+	req := httptest.NewRequest(http.MethodPost, "/chat",
+		strings.NewReader(`{"messages":[{"role":"user","content":"hola"}]}`)).WithContext(ctx)
+	rec := httptest.NewRecorder()
+
+	handler(rec, req)
+
+	if fake.gotCtx == nil {
+		t.Fatal("el handler no propagó ningún context a Complete")
+	}
+	if fake.gotCtx.Value(clave{}) != "sí" {
+		t.Fatal("el context propagado no es el de la petición HTTP")
+	}
 }
 
 func TestChatHandlerReturnsReply(t *testing.T) {

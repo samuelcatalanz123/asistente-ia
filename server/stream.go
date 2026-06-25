@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -10,7 +11,7 @@ import (
 
 // StreamingAIClient es un cliente de IA capaz de entregar la respuesta a trozos.
 type StreamingAIClient interface {
-	StreamComplete(messages []Message, modelo string, onChunk func(string)) error
+	StreamComplete(ctx context.Context, messages []Message, modelo string, onChunk func(string)) error
 }
 
 // sse escribe un evento Server-Sent Events y lo envía inmediatamente.
@@ -69,12 +70,15 @@ func NewStreamChatHandler(ai StreamingAIClient) http.HandlerFunc {
 		var enviado bool
 		var err error
 		for _, modelo := range modelos {
-			err = ai.StreamComplete(mensajes, modelo, func(chunk string) {
+			err = ai.StreamComplete(r.Context(), mensajes, modelo, func(chunk string) {
 				enviado = true
 				sse(w, flusher, map[string]string{"t": chunk})
 			})
 			if err == nil || enviado {
 				break // respondió (o ya empezó): no probamos otro modelo
+			}
+			if r.Context().Err() != nil {
+				return // el cliente se fue: no reintentamos ni respondemos
 			}
 			log.Printf("groq falló con modelo %s: %v", modelo, err)
 			time.Sleep(400 * time.Millisecond)
