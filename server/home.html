@@ -600,6 +600,19 @@
       pintarLista();
       cerrarPanel();
     }
+    function renombrar(id, ev) {
+      ev.stopPropagation();
+      const c = conversaciones.find((x) => x.id === id);
+      if (!c) return;
+      const nuevo = prompt("✏️ Nuevo nombre para esta conversación:", c.titulo);
+      if (nuevo === null) return; // canceló
+      const limpio = nuevo.trim();
+      if (!limpio) return;
+      c.titulo = limpio.slice(0, 40);
+      c.tituloManual = true; // para que el auto-título no lo pise
+      guardarTodo();
+      pintarLista();
+    }
     function borrar(id, ev) {
       ev.stopPropagation();
       conversaciones = conversaciones.filter((c) => c.id !== id);
@@ -629,12 +642,18 @@
         const nombre = document.createElement("div");
         nombre.className = "nombre";
         nombre.textContent = c.titulo;
+        const lapiz = document.createElement("button");
+        lapiz.className = "borrar";
+        lapiz.textContent = "✏️";
+        lapiz.title = "Renombrar";
+        lapiz.onclick = (ev) => renombrar(c.id, ev);
         const x = document.createElement("button");
         x.className = "borrar";
         x.textContent = "🗑";
         x.title = "Borrar";
         x.onclick = (ev) => borrar(c.id, ev);
         div.appendChild(nombre);
+        div.appendChild(lapiz);
         div.appendChild(x);
         listaConvs.appendChild(div);
       });
@@ -1177,6 +1196,27 @@
       reg.textContent = "🔄 Otra respuesta";
       reg.addEventListener("click", regenerar);
       sugerencias.appendChild(reg);
+      // Botón editar tu última pregunta
+      const edit = document.createElement("div");
+      edit.className = "chip";
+      edit.textContent = "✏️ Editar mi pregunta";
+      edit.addEventListener("click", editarUltimo);
+      sugerencias.appendChild(edit);
+    }
+
+    // Devuelve la última pregunta al campo de texto para corregirla y reenviarla.
+    function editarUltimo() {
+      if (cargando) return;
+      const h = historial();
+      if (!h.length) return;
+      if (h[h.length - 1].role === "assistant") h.pop(); // quita la respuesta
+      const ultimoUser = h.length ? h[h.length - 1] : null;
+      if (!ultimoUser || ultimoUser.role !== "user") return;
+      h.pop(); // quita la pregunta (la editas y se reenvía)
+      guardarTodo();
+      render();
+      texto.value = ultimoUser.content;
+      texto.focus();
     }
 
     // #B — Regenerar la última respuesta (vuelve a preguntar lo mismo).
@@ -1337,8 +1377,8 @@
       // Ya se mandó la foto: limpiamos la vista previa.
       imagenPendiente = null;
       mostrarPreviewFoto();
-      // El título de la conversación = primer mensaje del usuario.
-      if (convActual() && convActual().mensajes.length === 1) {
+      // El título de la conversación = primer mensaje del usuario (salvo que el usuario ya lo haya renombrado).
+      if (convActual() && convActual().mensajes.length === 1 && !convActual().tituloManual) {
         convActual().titulo = (contenido || "📷 Foto").slice(0, 30);
         pintarLista();
       }
