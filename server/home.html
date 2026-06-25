@@ -285,6 +285,13 @@
     #galeriaGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
     #galeriaGrid img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 10px; cursor: pointer; }
     #galeriaGrid .vacio { grid-column: 1 / -1; text-align: center; padding: 30px; opacity: 0.7; }
+    #fondoFavoritos { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: none; z-index: 14; }
+    #fondoFavoritos.abierto { display: flex; align-items: center; justify-content: center; padding: 16px; }
+    #favoritosPanel { background: var(--panel); color: var(--texto-ia); width: 580px; max-width: 94%; max-height: 85vh; overflow: auto; border-radius: 16px; padding: 18px; box-shadow: 0 8px 30px rgba(0,0,0,0.3); }
+    #favoritosLista { display: flex; flex-direction: column; gap: 12px; }
+    #favoritosLista .vacio { text-align: center; padding: 30px; opacity: 0.7; }
+    .fav-card { background: var(--chip); border-radius: 12px; padding: 12px; }
+    .fav-card .img-generada { max-width: 220px; }
     #listaConvs { flex: 1; overflow-y: auto; padding: 0 8px 12px; }
     .conv {
       display: flex;
@@ -388,6 +395,7 @@
     <button id="btnVoz">🔇 Leer en voz alta</button>
     <button id="btnAjustes">⚙️ Ajustes</button>
     <button id="btnNuevoRapido">➕ Nueva conversación</button>
+    <button id="btnFavoritos">⭐ Mis favoritos</button>
     <button id="btnWhatsapp">📲 Compartir por WhatsApp</button>
     <button id="btnCompartir">📤 Compartir (otras apps)</button>
     <button id="btnDescargarConv">📄 Descargar conversación</button>
@@ -434,6 +442,17 @@
         <button id="cerrarGaleria" title="Cerrar">✕</button>
       </div>
       <div id="galeriaGrid"></div>
+    </div>
+  </div>
+
+  <!-- Modal de favoritos -->
+  <div id="fondoFavoritos">
+    <div id="favoritosPanel">
+      <div class="gal-cab">
+        <h3>⭐ Mis favoritos</h3>
+        <button id="cerrarFavoritos" title="Cerrar">✕</button>
+      </div>
+      <div id="favoritosLista"></div>
     </div>
   </div>
 
@@ -518,9 +537,10 @@
     const CLAVE_MODELO = "modelo-asistente";
     const PREGUNTAS = [
       "Escríbeme un ejemplo de código en Go 💻",
+      "🎨 Imagen de un gato bonito",
+      "🖼️ Dibuja un dragón rojo",
       "Dame una idea para un proyecto",
       "Cuéntame un chiste de programadores 😄",
-      "¿Cómo empiezo a aprender a programar?",
     ];
 
     let conversaciones = [];   // [{id, titulo, mensajes:[]}]
@@ -686,6 +706,7 @@
         });
       };
       div.appendChild(btn);
+      div.appendChild(botonFav({ clave: texto, tipo: "texto", contenido: texto }));
       agregarHora(div, hora);
     }
 
@@ -736,6 +757,7 @@
       btnDesc.textContent = "💾 Descargar";
       btnDesc.onclick = () => descargarImagen(url);
       div.appendChild(btnDesc);
+      div.appendChild(botonFav({ clave: url, tipo: "imagen", imageUrl: url }));
       agregarHora(div, hora);
       mensajes.appendChild(div);
       mensajes.scrollTop = mensajes.scrollHeight;
@@ -907,6 +929,72 @@
       a.click();
       a.remove();
       URL.revokeObjectURL(a.href);
+    });
+
+    // ----- Favoritos: guardar respuestas e imágenes -----
+    const CLAVE_FAVS = "favoritos-asistente";
+    let favoritos = [];
+    try { favoritos = JSON.parse(localStorage.getItem(CLAVE_FAVS) || "[]"); } catch (e) {}
+    function guardarFavs() { localStorage.setItem(CLAVE_FAVS, JSON.stringify(favoritos)); }
+    function esFav(clave) { return favoritos.some((f) => f.clave === clave); }
+    function alternarFav(item, btn) {
+      const i = favoritos.findIndex((f) => f.clave === item.clave);
+      if (i >= 0) favoritos.splice(i, 1);
+      else favoritos.unshift(item);
+      guardarFavs();
+      if (btn) btn.textContent = esFav(item.clave) ? "⭐ Guardado" : "☆ Favorito";
+    }
+    // Crea un botón ☆/⭐ para guardar o quitar de favoritos.
+    function botonFav(item) {
+      const b = document.createElement("button");
+      b.className = "copiar-msg";
+      b.textContent = esFav(item.clave) ? "⭐ Guardado" : "☆ Favorito";
+      b.onclick = () => alternarFav(item, b);
+      return b;
+    }
+
+    const btnFavoritos = document.getElementById("btnFavoritos");
+    const fondoFavoritos = document.getElementById("fondoFavoritos");
+    const cerrarFavoritos = document.getElementById("cerrarFavoritos");
+    const favoritosLista = document.getElementById("favoritosLista");
+
+    function abrirFavoritos() {
+      favoritosLista.innerHTML = "";
+      if (!favoritos.length) {
+        const v = document.createElement("div");
+        v.className = "vacio";
+        v.textContent = "Aún no tienes favoritos. Toca ☆ Favorito en una respuesta o imagen.";
+        favoritosLista.appendChild(v);
+      } else {
+        favoritos.forEach((f) => {
+          const card = document.createElement("div");
+          card.className = "fav-card";
+          if (f.tipo === "imagen") {
+            const img = document.createElement("img");
+            img.src = f.imageUrl;
+            img.className = "img-generada";
+            img.title = "Toca para descargar";
+            img.onclick = () => descargarImagen(f.imageUrl);
+            card.appendChild(img);
+          } else {
+            const p = document.createElement("div");
+            p.innerHTML = formatear(f.contenido);
+            card.appendChild(p);
+          }
+          const quitar = document.createElement("button");
+          quitar.className = "copiar-msg";
+          quitar.textContent = "🗑️ Quitar";
+          quitar.onclick = () => { alternarFav(f); abrirFavoritos(); };
+          card.appendChild(quitar);
+          favoritosLista.appendChild(card);
+        });
+      }
+      fondoFavoritos.classList.add("abierto");
+    }
+    btnFavoritos.addEventListener("click", abrirFavoritos);
+    cerrarFavoritos.addEventListener("click", () => fondoFavoritos.classList.remove("abierto"));
+    fondoFavoritos.addEventListener("click", (e) => {
+      if (e.target === fondoFavoritos) fondoFavoritos.classList.remove("abierto");
     });
 
     function mostrarPreviewFoto() {
