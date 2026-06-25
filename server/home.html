@@ -47,8 +47,10 @@
       display: flex;
       flex-direction: column;
       height: 100vh;
+      overflow-x: hidden;
       transition: background 0.3s, color 0.3s;
     }
+    header { min-width: 0; }
     header {
       background: var(--cabecera);
       color: #fff;
@@ -59,10 +61,10 @@
       box-shadow: var(--sombra);
       z-index: 2;
     }
-    .titulo { display: flex; flex-direction: column; flex: 1; }
-    .titulo b { font-size: 18px; font-weight: 700; }
-    .titulo span { font-size: 12px; opacity: 0.9; margin-top: 2px; }
-    .acciones { display: flex; gap: 8px; }
+    .titulo { display: flex; flex-direction: column; flex: 1; min-width: 0; overflow: hidden; }
+    .titulo b { font-size: 18px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .titulo span { font-size: 12px; opacity: 0.9; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .acciones { display: flex; gap: 8px; flex-shrink: 0; }
     .icono {
       background: rgba(255,255,255,0.18);
       border: none;
@@ -229,6 +231,10 @@
     #accionesRapidas { display: flex; gap: 8px; padding: 0 12px 4px; flex-wrap: wrap; }
     #accionesRapidas button { border: 1px solid var(--borde); background: var(--chip); color: var(--chip-texto); border-radius: 16px; padding: 6px 14px; font-size: 13px; cursor: pointer; }
     #accionesRapidas button:hover { background: var(--azul); color: #fff; }
+    .menu-mas { position: fixed; top: 56px; right: 8px; background: var(--panel); border: 1px solid var(--borde); border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,.2); padding: 6px; display: flex; flex-direction: column; gap: 2px; z-index: 60; min-width: 210px; }
+    .menu-mas button { border: none; background: transparent; color: var(--texto-ia); padding: 11px 14px; text-align: left; font-size: 14px; cursor: pointer; border-radius: 8px; white-space: nowrap; }
+    .menu-mas button:hover { background: var(--chip); }
+    .menu-mas button.activo { color: var(--azul); font-weight: 700; }
 
     /* Panel lateral de conversaciones */
     #fondoPanel {
@@ -371,15 +377,22 @@
       <span>Creado por Samuel</span>
     </div>
     <div class="acciones">
-      <button id="btnNuevoRapido" class="icono" title="Nueva conversación">➕</button>
-      <button id="btnCompartir" class="icono" title="Compartir conversación">📤</button>
-      <button id="btnVoz" class="icono" title="Activar/desactivar voz">🔇</button>
       <button id="btnManosLibres" class="icono" title="Modo manos libres (hablar y escuchar)">🎙️</button>
-      <button id="btnAjustes" class="icono" title="Ajustes">⚙️</button>
-      <button id="btnPantalla" class="icono" title="Pantalla completa">⛶</button>
       <button id="btnTema" class="icono" title="Modo claro/oscuro">🌙</button>
+      <button id="btnMas" class="icono" title="Más opciones">⋮</button>
     </div>
   </header>
+
+  <!-- Menú "⋮" con las opciones secundarias (cabecera más limpia) -->
+  <div id="menuMas" class="menu-mas" style="display:none">
+    <button id="btnVoz">🔇 Leer en voz alta</button>
+    <button id="btnAjustes">⚙️ Ajustes</button>
+    <button id="btnNuevoRapido">➕ Nueva conversación</button>
+    <button id="btnWhatsapp">📲 Compartir por WhatsApp</button>
+    <button id="btnCompartir">📤 Compartir (otras apps)</button>
+    <button id="btnDescargarConv">📄 Descargar conversación</button>
+    <button id="btnPantalla">⛶ Pantalla completa</button>
+  </div>
 
   <div id="mensajes"></div>
   <div id="ejemplos"></div>
@@ -859,6 +872,43 @@
       if (e.target === fondoGaleria) fondoGaleria.classList.remove("abierto");
     });
 
+    // ----- Menú "⋮" + Compartir por WhatsApp + Descargar conversación -----
+    const btnMas = document.getElementById("btnMas");
+    const menuMas = document.getElementById("menuMas");
+    const btnWhatsapp = document.getElementById("btnWhatsapp");
+    const btnDescargarConv = document.getElementById("btnDescargarConv");
+
+    btnMas.addEventListener("click", (e) => {
+      e.stopPropagation();
+      menuMas.style.display = menuMas.style.display === "none" ? "flex" : "none";
+    });
+    document.addEventListener("click", () => { menuMas.style.display = "none"; });
+    menuMas.addEventListener("click", () => { menuMas.style.display = "none"; });
+
+    // Arma el texto de toda la conversación (para WhatsApp y para descargar).
+    function textoConversacion() {
+      const h = historial();
+      if (!h.length) return null;
+      return "💬 Conversación con mi Asistente IA\n\n" +
+        h.map((m) => (m.role === "user" ? "🧑 Yo: " : "🤖 Asistente: ") + m.content).join("\n\n");
+    }
+    btnWhatsapp.addEventListener("click", () => {
+      const t = textoConversacion();
+      if (!t) { alert("Escribe algo primero para compartir 🙂"); return; }
+      window.open("https://wa.me/?text=" + encodeURIComponent(t), "_blank");
+    });
+    btnDescargarConv.addEventListener("click", () => {
+      const t = textoConversacion();
+      if (!t) { alert("Escribe algo primero para descargar 🙂"); return; }
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([t], { type: "text/plain;charset=utf-8" }));
+      a.download = "conversacion-asistente.txt";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(a.href);
+    });
+
     function mostrarPreviewFoto() {
       previewFoto.innerHTML = "";
       if (!imagenPendiente) return;
@@ -1292,13 +1342,16 @@
       btnPantalla.classList.toggle("activo", !!document.fullscreenElement);
     });
 
+    function actualizarLabelVoz() {
+      btnVoz.textContent = leerEnVoz ? "🔊 Voz: activada" : "🔇 Leer en voz alta";
+      btnVoz.classList.toggle("activo", leerEnVoz);
+    }
     btnVoz.addEventListener("click", () => {
       leerEnVoz = !leerEnVoz;
-      btnVoz.classList.toggle("activo", leerEnVoz);
-      btnVoz.textContent = leerEnVoz ? "🔊" : "🔇";
-      btnVoz.title = leerEnVoz ? "Voz activada (toca para apagar)" : "Voz apagada (toca para que hable)";
+      actualizarLabelVoz();
       if (!leerEnVoz && window.speechSynthesis) window.speechSynthesis.cancel();
     });
+    actualizarLabelVoz();
 
     const Reconocimiento = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -1344,8 +1397,7 @@
       btnManosLibres.classList.toggle("activo", modoVoz);
       if (modoVoz) {
         leerEnVoz = true; // en manos libres siempre lee las respuestas
-        btnVoz.classList.add("activo");
-        btnVoz.textContent = "🔊";
+        actualizarLabelVoz();
         iniciarEscucha();
       } else {
         try { rec.stop(); } catch (e) {}
