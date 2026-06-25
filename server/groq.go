@@ -13,6 +13,7 @@ import (
 
 const groqURL = "https://api.groq.com/openai/v1/chat/completions"
 const groqModel = "llama-3.3-70b-versatile"
+const groqVisionModel = "meta-llama/llama-4-scout-17b-16e-instruct" // entiende imágenes
 
 // modeloDeGroq traduce la elección del usuario ("rapido"/"inteligente") al
 // nombre real del modelo en Groq.
@@ -39,9 +40,48 @@ func NewGroqClient(apiKey string) *GroqClient {
 }
 
 type groqRequest struct {
-	Model    string    `json:"model"`
-	Messages []Message `json:"messages"`
-	Stream   bool      `json:"stream,omitempty"`
+	Model    string        `json:"model"`
+	Messages []groqMessage `json:"messages"`
+	Stream   bool          `json:"stream,omitempty"`
+}
+
+// groqMessage es un mensaje en el formato que entiende Groq. El Content puede
+// ser texto simple (string) o una lista de partes (texto + imagen) para visión.
+type groqMessage struct {
+	Role    string `json:"role"`
+	Content any    `json:"content"`
+}
+
+type contentPart struct {
+	Type     string    `json:"type"` // "text" o "image_url"
+	Text     string    `json:"text,omitempty"`
+	ImageURL *imageURL `json:"image_url,omitempty"`
+}
+
+type imageURL struct {
+	URL string `json:"url"`
+}
+
+// aGroqMessages convierte nuestros mensajes al formato de Groq. Si algún mensaje
+// trae una imagen, arma el formato multimodal y devuelve hayImagen=true.
+func aGroqMessages(messages []Message) (out []groqMessage, hayImagen bool) {
+	out = make([]groqMessage, len(messages))
+	for i, m := range messages {
+		if m.Imagen != "" {
+			hayImagen = true
+			texto := m.Content
+			if texto == "" {
+				texto = "¿Qué hay en esta imagen? Descríbela en español."
+			}
+			out[i] = groqMessage{Role: m.Role, Content: []contentPart{
+				{Type: "text", Text: texto},
+				{Type: "image_url", ImageURL: &imageURL{URL: m.Imagen}},
+			}}
+		} else {
+			out[i] = groqMessage{Role: m.Role, Content: m.Content}
+		}
+	}
+	return out, hayImagen
 }
 
 type groqResponse struct {
@@ -60,7 +100,12 @@ type groqStreamChunk struct {
 }
 
 func (c *GroqClient) Complete(messages []Message, modelo string) (string, error) {
-	payload, err := json.Marshal(groqRequest{Model: modeloDeGroq(modelo), Messages: messages})
+	ms, hayImagen := aGroqMessages(messages)
+	model := modeloDeGroq(modelo)
+	if hayImagen {
+		model = groqVisionModel // si hay foto, usa el modelo que "ve"
+	}
+	payload, err := json.Marshal(groqRequest{Model: model, Messages: ms})
 	if err != nil {
 		return "", err
 	}
@@ -97,7 +142,12 @@ func (c *GroqClient) Complete(messages []Message, modelo string) (string, error)
 // StreamComplete pide la respuesta en modo streaming y llama a onChunk con
 // cada trocito de texto según va llegando desde Groq.
 func (c *GroqClient) StreamComplete(messages []Message, modelo string, onChunk func(string)) error {
-	payload, err := json.Marshal(groqRequest{Model: modeloDeGroq(modelo), Messages: messages, Stream: true})
+	ms, hayImagen := aGroqMessages(messages)
+	model := modeloDeGroq(modelo)
+	if hayImagen {
+		model = groqVisionModel // si hay foto, usa el modelo que "ve"
+	}
+	payload, err := json.Marshal(groqRequest{Model: model, Messages: ms, Stream: true})
 	if err != nil {
 		return err
 	}

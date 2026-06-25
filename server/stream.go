@@ -34,7 +34,7 @@ func NewStreamChatHandler(ai StreamingAIClient) http.HandlerFunc {
 			return
 		}
 
-		r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+		r.Body = http.MaxBytesReader(w, r.Body, 8<<20) // 8 MB (las fotos pesan)
 		var req ChatRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "json inválido"})
@@ -54,9 +54,17 @@ func NewStreamChatHandler(ai StreamingAIClient) http.HandlerFunc {
 		// Modelos a intentar: el que pidió el usuario y, si falla (p. ej. el
 		// grande agotó su cuota diaria de Groq), el "rápido", que tiene mucho
 		// más límite gratis. Así la app sigue respondiendo siempre.
+		// ¿Algún mensaje trae una foto? Entonces se usará el modelo de visión.
+		hayFoto := false
+		for _, m := range req.Messages {
+			if m.Imagen != "" {
+				hayFoto = true
+				break
+			}
+		}
 		modelos := []string{req.Modelo}
-		if req.Modelo != "rapido" {
-			modelos = append(modelos, "rapido")
+		if req.Modelo != "rapido" && !hayFoto {
+			modelos = append(modelos, "rapido") // respaldo (no aplica con foto)
 		}
 		var enviado bool
 		var err error

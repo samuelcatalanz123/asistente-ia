@@ -4,6 +4,9 @@ package main
 type Message struct {
 	Role    string `json:"role"` // "user" or "assistant"
 	Content string `json:"content"`
+	// Imagen es una foto en base64 (data URL) que el usuario adjunta para que
+	// la IA la "vea". Vacío en los mensajes normales.
+	Imagen string `json:"imagen,omitempty"`
 }
 
 // ChatRequest is what the Flutter app sends to POST /chat.

@@ -195,7 +195,7 @@
       color: var(--texto-ia);
     }
     #texto:focus { border-color: var(--azul); }
-    #micro {
+    #micro, #btnFoto {
       background: var(--chip);
       color: var(--chip-texto);
       border: 1px solid var(--borde);
@@ -220,6 +220,9 @@
     #enviar:hover { background: var(--azul-osc); }
     #enviar.parar { background: #ff4d4d; }
     .img-generada { display: block; margin-top: 8px; max-width: 280px; width: 100%; border-radius: 12px; }
+    #previewFoto { padding: 4px 12px 0; display: flex; align-items: center; gap: 6px; }
+    #previewFoto img { max-height: 64px; border-radius: 8px; }
+    #previewFoto .quitar-foto { border: none; background: #ff4d4d; color: #fff; border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-size: 12px; }
 
     /* Panel lateral de conversaciones */
     #fondoPanel {
@@ -365,7 +368,10 @@
   <div id="ejemplos"></div>
   <div id="sugerencias"></div>
 
+  <div id="previewFoto"></div>
   <form id="formulario">
+    <input id="archivoFoto" type="file" accept="image/*" style="display:none" />
+    <button id="btnFoto" type="button" title="Subir una foto">📷</button>
     <input id="texto" type="text" placeholder="Escribe tu mensaje..." autocomplete="off" />
     <button id="micro" type="button" title="Hablar por voz">🎤</button>
     <button id="enviar" type="submit">Enviar</button>
@@ -616,11 +622,21 @@
       agregarHora(div, hora);
     }
 
-    function pintar(rol, contenido, hora) {
+    function pintar(rol, contenido, hora, imagen) {
       const div = document.createElement("div");
       div.className = "burbuja " + (rol === "user" ? "yo" : "ia");
       if (rol === "user") {
-        div.textContent = contenido;
+        if (contenido) {
+          const t = document.createElement("div");
+          t.textContent = contenido;
+          div.appendChild(t);
+        }
+        if (imagen) {
+          const img = document.createElement("img");
+          img.src = imagen;
+          img.className = "img-generada";
+          div.appendChild(img);
+        }
         agregarHora(div, hora);
       } else if (contenido === "…") {
         div.innerHTML = "…";
@@ -669,6 +685,63 @@
       return tema || null;
     }
 
+    // ----- Subir una foto para que la IA la "vea" -----
+    const btnFoto = document.getElementById("btnFoto");
+    const archivoFoto = document.getElementById("archivoFoto");
+    const previewFoto = document.getElementById("previewFoto");
+    let imagenPendiente = null;
+
+    btnFoto.addEventListener("click", () => archivoFoto.click());
+
+    archivoFoto.addEventListener("change", async () => {
+      const file = archivoFoto.files[0];
+      if (!file) return;
+      try {
+        imagenPendiente = await comprimirImagen(file, 1024, 0.8);
+        mostrarPreviewFoto();
+      } catch (e) {
+        alert("No pude leer esa imagen 😕");
+      }
+      archivoFoto.value = ""; // permite re-elegir la misma foto
+    });
+
+    function mostrarPreviewFoto() {
+      previewFoto.innerHTML = "";
+      if (!imagenPendiente) return;
+      const img = document.createElement("img");
+      img.src = imagenPendiente;
+      const x = document.createElement("button");
+      x.className = "quitar-foto";
+      x.textContent = "✕";
+      x.title = "Quitar foto";
+      x.onclick = () => { imagenPendiente = null; mostrarPreviewFoto(); };
+      previewFoto.appendChild(img);
+      previewFoto.appendChild(x);
+    }
+
+    // Reduce la foto (máx maxLado px) y la pasa a base64 JPEG, para que no pese.
+    function comprimirImagen(file, maxLado, calidad) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            let w = img.width, h = img.height;
+            if (w > h && w > maxLado) { h = Math.round(h * maxLado / w); w = maxLado; }
+            else if (h > maxLado) { w = Math.round(w * maxLado / h); h = maxLado; }
+            const canvas = document.createElement("canvas");
+            canvas.width = w; canvas.height = h;
+            canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+            resolve(canvas.toDataURL("image/jpeg", calidad));
+          };
+          img.onerror = reject;
+          img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
     // Vuelve a dibujar la conversación actual.
     function render() {
       mensajes.innerHTML = "";
@@ -678,7 +751,7 @@
         mostrarEjemplos();
       } else {
         ejemplos.innerHTML = "";
-        h.forEach((m) => m.imageUrl ? pintarImagen(m.content, m.imageUrl, m.hora) : pintar(m.role, m.content, m.hora));
+        h.forEach((m) => m.imageUrl ? pintarImagen(m.content, m.imageUrl, m.hora) : pintar(m.role, m.content, m.hora, m.imagen));
       }
     }
 
@@ -860,45 +933,54 @@
 
     async function enviarMensaje(contenido) {
       contenido = contenido.trim();
-      if (!contenido || cargando) return;
+      const foto = imagenPendiente;
+      if ((!contenido && !foto) || cargando) return;
 
       ejemplos.innerHTML = "";
       limpiarSugerencias();
       const horaUser = horaActual();
-      pintar("user", contenido, horaUser);
-      historial().push({ role: "user", content: contenido, hora: horaUser });
+      pintar("user", contenido, horaUser, foto);
+      const msgUser = { role: "user", content: contenido, hora: horaUser };
+      if (foto) msgUser.imagen = foto;
+      historial().push(msgUser);
+      // Ya se mandó la foto: limpiamos la vista previa.
+      imagenPendiente = null;
+      mostrarPreviewFoto();
       // El título de la conversación = primer mensaje del usuario.
       if (convActual() && convActual().mensajes.length === 1) {
-        convActual().titulo = contenido.slice(0, 30);
+        convActual().titulo = (contenido || "📷 Foto").slice(0, 30);
         pintarLista();
       }
       guardarTodo();
       texto.value = "";
 
-      // ¿Es un comando para abrir un curso/página?
-      const curso = detectarCurso(contenido);
-      if (curso) {
-        window.open(curso.url, "_blank");
-        const conf = "¡Listo! Te he abierto " + curso.nombre + " en una pestaña nueva. 👍";
-        pintar("assistant", conf);
-        historial().push({ role: "assistant", content: conf });
-        guardarTodo();
-        hablar(conf);
-        texto.focus();
-        return;
-      }
+      // Si NO hay foto adjunta, revisamos comandos de curso e imágenes generadas.
+      if (!foto) {
+        // ¿Es un comando para abrir un curso/página?
+        const curso = detectarCurso(contenido);
+        if (curso) {
+          window.open(curso.url, "_blank");
+          const conf = "¡Listo! Te he abierto " + curso.nombre + " en una pestaña nueva. 👍";
+          pintar("assistant", conf);
+          historial().push({ role: "assistant", content: conf });
+          guardarTodo();
+          hablar(conf);
+          texto.focus();
+          return;
+        }
 
-      // ¿Pide una imagen? → la generamos y mostramos (sin molestar a la IA).
-      const temaImg = temaDeImagen(contenido);
-      if (temaImg) {
-        const url = "https://image.pollinations.ai/prompt/" + encodeURIComponent(temaImg);
-        const horaImg = horaActual();
-        const cap = 'Aquí tienes una imagen de "' + temaImg + '" 🎨';
-        pintarImagen(cap, url, horaImg);
-        historial().push({ role: "assistant", content: cap, imageUrl: url, hora: horaImg });
-        guardarTodo();
-        texto.focus();
-        return;
+        // ¿Pide una imagen? → la generamos y mostramos (sin molestar a la IA).
+        const temaImg = temaDeImagen(contenido);
+        if (temaImg) {
+          const url = "https://image.pollinations.ai/prompt/" + encodeURIComponent(temaImg);
+          const horaImg = horaActual();
+          const cap = 'Aquí tienes una imagen de "' + temaImg + '" 🎨';
+          pintarImagen(cap, url, horaImg);
+          historial().push({ role: "assistant", content: cap, imageUrl: url, hora: horaImg });
+          guardarTodo();
+          texto.focus();
+          return;
+        }
       }
 
       modoCargando(true);
