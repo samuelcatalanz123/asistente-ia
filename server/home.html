@@ -223,6 +223,9 @@
     #previewFoto { padding: 4px 12px 0; display: flex; align-items: center; gap: 6px; }
     #previewFoto img { max-height: 64px; border-radius: 8px; }
     #previewFoto .quitar-foto { border: none; background: #ff4d4d; color: #fff; border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-size: 12px; }
+    .menu-foto { position: fixed; left: 10px; bottom: 70px; background: var(--burbuja-ia, var(--chip)); border: 1px solid var(--borde); border-radius: 12px; box-shadow: 0 6px 18px rgba(0,0,0,.18); padding: 6px; display: flex; flex-direction: column; gap: 4px; z-index: 60; }
+    .menu-foto button { border: none; background: transparent; padding: 10px 16px; text-align: left; font-size: 14px; cursor: pointer; border-radius: 8px; color: var(--chip-texto); white-space: nowrap; }
+    .menu-foto button:active, .menu-foto button:hover { background: var(--azul); color: #fff; }
 
     /* Panel lateral de conversaciones */
     #fondoPanel {
@@ -369,9 +372,14 @@
   <div id="sugerencias"></div>
 
   <div id="previewFoto"></div>
+  <div id="menuFoto" class="menu-foto" style="display:none">
+    <button type="button" id="optCamara">📸 Tomar foto</button>
+    <button type="button" id="optGaleria">🖼️ Desde galería</button>
+  </div>
   <form id="formulario">
     <input id="archivoFoto" type="file" accept="image/*" style="display:none" />
-    <button id="btnFoto" type="button" title="Subir una foto">📷</button>
+    <input id="archivoCamara" type="file" accept="image/*" capture="environment" style="display:none" />
+    <button id="btnFoto" type="button" title="Subir o tomar una foto">📷</button>
     <input id="texto" type="text" placeholder="Escribe tu mensaje..." autocomplete="off" />
     <button id="micro" type="button" title="Hablar por voz">🎤</button>
     <button id="enviar" type="submit">Enviar</button>
@@ -719,16 +727,27 @@
       return tema || null;
     }
 
-    // ----- Subir una foto para que la IA la "vea" -----
+    // ----- Subir o TOMAR una foto para que la IA la "vea" -----
     const btnFoto = document.getElementById("btnFoto");
     const archivoFoto = document.getElementById("archivoFoto");
+    const archivoCamara = document.getElementById("archivoCamara");
     const previewFoto = document.getElementById("previewFoto");
+    const menuFoto = document.getElementById("menuFoto");
+    const optCamara = document.getElementById("optCamara");
+    const optGaleria = document.getElementById("optGaleria");
     let imagenPendiente = null;
 
-    btnFoto.addEventListener("click", () => archivoFoto.click());
+    // Al tocar 📷 se abre un menú: tomar foto (cámara) o elegir de galería.
+    btnFoto.addEventListener("click", (e) => {
+      e.stopPropagation();
+      menuFoto.style.display = menuFoto.style.display === "none" ? "flex" : "none";
+    });
+    optCamara.addEventListener("click", () => { menuFoto.style.display = "none"; archivoCamara.click(); });
+    optGaleria.addEventListener("click", () => { menuFoto.style.display = "none"; archivoFoto.click(); });
+    document.addEventListener("click", () => { menuFoto.style.display = "none"; });
 
-    archivoFoto.addEventListener("change", async () => {
-      const file = archivoFoto.files[0];
+    async function procesarFoto(input) {
+      const file = input.files[0];
       if (!file) return;
       try {
         imagenPendiente = await comprimirImagen(file, 1024, 0.8);
@@ -736,8 +755,10 @@
       } catch (e) {
         alert("No pude leer esa imagen 😕");
       }
-      archivoFoto.value = ""; // permite re-elegir la misma foto
-    });
+      input.value = ""; // permite re-elegir la misma foto
+    }
+    archivoFoto.addEventListener("change", () => procesarFoto(archivoFoto));
+    archivoCamara.addEventListener("change", () => procesarFoto(archivoCamara));
 
     function mostrarPreviewFoto() {
       previewFoto.innerHTML = "";
