@@ -58,3 +58,16 @@ func TestStreamHandlerRechazaVacio(t *testing.T) {
 		t.Fatalf("esperaba 400 con mensajes vacíos, obtuve %d", rec.Code)
 	}
 }
+
+// El endpoint de streaming solo acepta POST; un GET debe dar 405.
+func TestStreamHandlerRechazaGET(t *testing.T) {
+	handler := NewStreamChatHandler(&fakeStreamer{})
+	req := httptest.NewRequest(http.MethodGet, "/chat/stream", nil)
+	rec := httptest.NewRecorder()
+
+	handler(rec, req)
+
+	if rec.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("esperaba 405 para GET, obtuve %d", rec.Code)
+	}
+}

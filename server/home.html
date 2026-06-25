@@ -222,6 +222,9 @@
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; scroll-behavior: auto !important; }
     }
+    /* Tamaño de texto ajustable (accesibilidad). */
+    body.texto-pequeno .burbuja, body.texto-pequeno #texto { font-size: 13.5px; }
+    body.texto-grande .burbuja, body.texto-grande #texto { font-size: 18px; }
     #micro, #btnFoto {
       background: var(--chip);
       color: var(--chip-texto);
@@ -524,6 +527,12 @@
         <button type="button" class="swatch" data-color="naranja" title="Naranja" style="background:#f4511e"></button>
         <button type="button" class="swatch" data-color="rosa" title="Rosa" style="background:#e91e63"></button>
       </div>
+      <label for="selTexto">🔤 Tamaño del texto</label>
+      <select id="selTexto">
+        <option value="pequeno">Pequeño</option>
+        <option value="normal">Normal</option>
+        <option value="grande">Grande</option>
+      </select>
       <hr style="border:none;border-top:1px solid var(--borde);margin:16px 0;" />
       <label for="selVoz">🎙️ Voz</label>
       <select id="selVoz"></select>
@@ -1701,6 +1710,23 @@
       nombreUsuario = inputNombre.value.trim();
       localStorage.setItem("nombre-usuario", nombreUsuario);
       if (historial().length === 0) render(); // refresca el saludo al instante
+    });
+
+    // 🔤 Tamaño del texto (accesibilidad), recordado.
+    const CLAVE_TEXTO = "tamano-texto";
+    const selTexto = document.getElementById("selTexto");
+    function aplicarTamano(t) {
+      document.body.classList.remove("texto-pequeno", "texto-grande");
+      if (t === "pequeno") document.body.classList.add("texto-pequeno");
+      else if (t === "grande") document.body.classList.add("texto-grande");
+    }
+    let tamanoTexto = localStorage.getItem(CLAVE_TEXTO) || "normal";
+    selTexto.value = tamanoTexto;
+    aplicarTamano(tamanoTexto);
+    selTexto.addEventListener("change", () => {
+      tamanoTexto = selTexto.value;
+      localStorage.setItem(CLAVE_TEXTO, tamanoTexto);
+      aplicarTamano(tamanoTexto);
     });
 
     // Pantalla completa

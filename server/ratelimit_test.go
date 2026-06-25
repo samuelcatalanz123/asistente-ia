@@ -1,9 +1,42 @@
 package main
 
 import (
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
+
+// Bajo muchas peticiones a la vez (misma IP, misma ventana), el límite debe
+// respetarse EXACTAMENTE. Corre con -race para detectar condiciones de carrera.
+func TestRateLimiterConcurrencia(t *testing.T) {
+	const limite = 100
+	rl := newRateLimiter(limite, time.Minute)
+	ahora := time.Now()
+
+	const goroutines = 50
+	const porGoroutine = 10 // 500 intentos en total, muy por encima del límite
+
+	var wg sync.WaitGroup
+	var permitidas int64
+	for i := 0; i < goroutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < porGoroutine; j++ {
+				if rl.permitido("9.9.9.9", ahora) {
+					atomic.AddInt64(&permitidas, 1)
+				}
+			}
+		}()
+	}
+	wg.Wait()
+
+	if permitidas != limite {
+		t.Fatalf("con límite %d y 500 intentos concurrentes, esperaba exactamente %d permitidas, obtuve %d",
+			limite, limite, permitidas)
+	}
+}
 
 func TestRateLimiterLimitaPorIP(t *testing.T) {
 	rl := newRateLimiter(2, time.Minute)
