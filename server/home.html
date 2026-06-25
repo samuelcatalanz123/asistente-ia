@@ -258,7 +258,7 @@
     }
     #panel.abierto { transform: translateX(0); }
     #panel h3 { margin: 0; padding: 16px; font-size: 15px; border-bottom: 1px solid var(--borde); }
-    #nuevaConv {
+    #nuevaConv, #btnGaleria {
       margin: 12px;
       padding: 11px;
       background: var(--azul);
@@ -269,6 +269,16 @@
       font-weight: 600;
       cursor: pointer;
     }
+    #btnGaleria { margin-top: 0; background: var(--chip); color: var(--texto-ia); border: 1px solid var(--borde); }
+    #fondoGaleria { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: none; z-index: 14; }
+    #fondoGaleria.abierto { display: flex; align-items: center; justify-content: center; padding: 16px; }
+    #galeriaPanel { background: var(--panel); color: var(--texto-ia); width: 580px; max-width: 94%; max-height: 85vh; overflow: auto; border-radius: 16px; padding: 18px; box-shadow: 0 8px 30px rgba(0,0,0,0.3); }
+    .gal-cab { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .gal-cab h3 { margin: 0; font-size: 17px; }
+    .gal-cab button { border: none; background: transparent; font-size: 20px; cursor: pointer; color: var(--texto-ia); }
+    #galeriaGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
+    #galeriaGrid img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 10px; cursor: pointer; }
+    #galeriaGrid .vacio { grid-column: 1 / -1; text-align: center; padding: 30px; opacity: 0.7; }
     #listaConvs { flex: 1; overflow-y: auto; padding: 0 8px 12px; }
     .conv {
       display: flex;
@@ -398,9 +408,21 @@
   <nav id="panel">
     <h3>💬 Mis conversaciones</h3>
     <button id="nuevaConv">➕ Nueva conversación</button>
+    <button id="btnGaleria">🖼️ Mis imágenes</button>
     <input id="buscarConv" type="text" placeholder="🔍 Buscar conversación..." />
     <div id="listaConvs"></div>
   </nav>
+
+  <!-- Galería de imágenes generadas -->
+  <div id="fondoGaleria">
+    <div id="galeriaPanel">
+      <div class="gal-cab">
+        <h3>🖼️ Mis imágenes</h3>
+        <button id="cerrarGaleria" title="Cerrar">✕</button>
+      </div>
+      <div id="galeriaGrid"></div>
+    </div>
+  </div>
 
   <!-- Menú de ajustes de voz -->
   <div id="fondoAjustes">
@@ -800,6 +822,42 @@
     }
     btnResumir.addEventListener("click", () => accionRapida("resumir"));
     btnTraducir.addEventListener("click", () => accionRapida("traducir"));
+
+    // ----- Galería: todas las imágenes generadas, juntas -----
+    const btnGaleria = document.getElementById("btnGaleria");
+    const fondoGaleria = document.getElementById("fondoGaleria");
+    const cerrarGaleria = document.getElementById("cerrarGaleria");
+    const galeriaGrid = document.getElementById("galeriaGrid");
+
+    function abrirGaleria() {
+      cerrarPanel(); // cierra el panel lateral si está abierto
+      galeriaGrid.innerHTML = "";
+      const urls = [];
+      conversaciones.forEach((c) =>
+        (c.mensajes || []).forEach((m) => { if (m.imageUrl) urls.push(m.imageUrl); })
+      );
+      if (!urls.length) {
+        const v = document.createElement("div");
+        v.className = "vacio";
+        v.textContent = 'Aún no has generado imágenes. Pídeme "imagen de un gato" 🎨';
+        galeriaGrid.appendChild(v);
+      } else {
+        urls.reverse().forEach((url) => { // las más nuevas primero
+          const img = document.createElement("img");
+          img.src = url;
+          img.loading = "lazy";
+          img.title = "Toca para descargar";
+          img.onclick = () => descargarImagen(url);
+          galeriaGrid.appendChild(img);
+        });
+      }
+      fondoGaleria.classList.add("abierto");
+    }
+    btnGaleria.addEventListener("click", abrirGaleria);
+    cerrarGaleria.addEventListener("click", () => fondoGaleria.classList.remove("abierto"));
+    fondoGaleria.addEventListener("click", (e) => {
+      if (e.target === fondoGaleria) fondoGaleria.classList.remove("abierto");
+    });
 
     function mostrarPreviewFoto() {
       previewFoto.innerHTML = "";
