@@ -207,6 +207,12 @@
     .swatch { width: 30px; height: 30px; border-radius: 50%; border: 3px solid transparent; cursor: pointer; padding: 0; transition: transform .1s; }
     .swatch:hover { transform: scale(1.12); }
     .swatch.activo { border-color: var(--texto-ia); }
+    #bannerOffline { position: fixed; top: 0; left: 0; right: 0; background: #c0392b; color: #fff; text-align: center; padding: 9px 12px; font-size: 14px; z-index: 100; display: none; }
+    #bannerOffline.visible { display: block; }
+    #btnBajar { position: fixed; right: 16px; bottom: 88px; width: 44px; height: 44px; border-radius: 50%; border: none; background: var(--azul); color: #fff; font-size: 18px; cursor: pointer; box-shadow: 0 3px 12px rgba(0,0,0,.25); display: none; z-index: 50; }
+    #btnBajar.visible { display: block; }
+    #inputNombre { width: 100%; padding: 10px 12px; border: 1px solid var(--borde); border-radius: 10px; font-size: 14px; background: var(--fondo); color: var(--texto-ia); outline: none; }
+    #inputNombre:focus { border-color: var(--azul); }
     #micro, #btnFoto {
       background: var(--chip);
       color: var(--chip-texto);
@@ -387,6 +393,7 @@
   </style>
 </head>
 <body>
+  <div id="bannerOffline">📴 Sin conexión a internet — se reanudará al volver la conexión</div>
   <header>
     <button id="btnMenu" class="icono" title="Mis conversaciones">☰</button>
     <div class="titulo">
@@ -417,6 +424,7 @@
   <div id="mensajes"></div>
   <div id="ejemplos"></div>
   <div id="sugerencias"></div>
+  <button id="btnBajar" title="Bajar al final">⬇️</button>
 
   <div id="previewFoto"></div>
   <div id="menuFoto" class="menu-foto" style="display:none">
@@ -472,6 +480,8 @@
   <div id="fondoAjustes">
     <div id="ajustes">
       <h3>⚙️ Ajustes</h3>
+      <label for="inputNombre">👤 Tu nombre (para que te salude)</label>
+      <input id="inputNombre" type="text" placeholder="Escribe tu nombre" maxlength="20" autocomplete="off" />
       <label for="selModo">🎭 Personalidad del asistente</label>
       <select id="selModo">
         <option value="amigable">😊 Amigable</option>
@@ -527,6 +537,8 @@
       const distancia = mensajes.scrollHeight - mensajes.scrollTop - mensajes.clientHeight;
       if (distancia < 120) mensajes.scrollTop = mensajes.scrollHeight;
     }
+    // Nombre del usuario (para el saludo). Se edita en Ajustes.
+    let nombreUsuario = localStorage.getItem("nombre-usuario") || "";
     const ejemplos = document.getElementById("ejemplos");
     const formulario = document.getElementById("formulario");
     const texto = document.getElementById("texto");
@@ -1178,7 +1190,10 @@
       mensajes.innerHTML = "";
       const h = historial();
       if (h.length === 0) {
-        pintar("assistant", "¡Hola! Soy tu asistente. ¿En qué te ayudo? 🙂");
+        const saludo = nombreUsuario
+          ? "¡Hola, " + nombreUsuario + "! Soy tu asistente. ¿En qué te ayudo? 🙂"
+          : "¡Hola! Soy tu asistente. ¿En qué te ayudo? 🙂";
+        pintar("assistant", saludo);
         mostrarEjemplos();
       } else {
         ejemplos.innerHTML = "";
@@ -1638,6 +1653,34 @@
       });
     });
     aplicarColor(colorElegido);
+
+    // 📴 Aviso de "sin conexión".
+    const bannerOffline = document.getElementById("bannerOffline");
+    function actualizarConexion() {
+      bannerOffline.classList.toggle("visible", !navigator.onLine);
+    }
+    window.addEventListener("online", actualizarConexion);
+    window.addEventListener("offline", actualizarConexion);
+    actualizarConexion();
+
+    // ⬇️ Botón "bajar al final" (aparece si subiste a leer mensajes viejos).
+    const btnBajar = document.getElementById("btnBajar");
+    mensajes.addEventListener("scroll", () => {
+      const distancia = mensajes.scrollHeight - mensajes.scrollTop - mensajes.clientHeight;
+      btnBajar.classList.toggle("visible", distancia > 200);
+    });
+    btnBajar.addEventListener("click", () => {
+      mensajes.scrollTo({ top: mensajes.scrollHeight, behavior: "smooth" });
+    });
+
+    // 👤 Nombre del usuario → saludo personalizado.
+    const inputNombre = document.getElementById("inputNombre");
+    inputNombre.value = nombreUsuario;
+    inputNombre.addEventListener("input", () => {
+      nombreUsuario = inputNombre.value.trim();
+      localStorage.setItem("nombre-usuario", nombreUsuario);
+      if (historial().length === 0) render(); // refresca el saludo al instante
+    });
 
     // Pantalla completa
     btnPantalla.addEventListener("click", () => {
