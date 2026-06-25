@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 )
 
@@ -43,9 +46,9 @@ func main() {
 	http.HandleFunc("/icon-192.png", icon192Handler)
 	http.HandleFunc("/icon-512.png", icon512Handler)
 	http.HandleFunc("/sw.js", swHandler)
-	http.HandleFunc("/health", withCORS(healthHandler))
-	http.HandleFunc("/chat", withCORS(limitador.middleware(NewChatHandler(groq))))
-	http.HandleFunc("/chat/stream", withCORS(limitador.middleware(NewStreamChatHandler(groq))))
+	http.HandleFunc("/health", withLogging(withCORS(healthHandler)))
+	http.HandleFunc("/chat", withLogging(withCORS(limitador.middleware(NewChatHandler(groq)))))
+	http.HandleFunc("/chat/stream", withLogging(withCORS(limitador.middleware(NewStreamChatHandler(groq)))))
 
 	srv := &http.Server{
 		Addr:         ":" + port,
@@ -53,6 +56,25 @@ func main() {
 		WriteTimeout: 35 * time.Second, // un poco más que el timeout de Groq (30s)
 	}
 
-	log.Printf("servidor escuchando en :%s", port)
-	log.Fatal(srv.ListenAndServe())
+	// El servidor escucha en segundo plano para poder atender la señal de apagado.
+	go func() {
+		log.Printf("servidor escuchando en :%s", port)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("error del servidor: %v", err)
+		}
+	}()
+
+	// Apagado elegante: cuando el sistema pide cerrar (p. ej. Render en cada
+	// despliegue manda SIGTERM), dejamos terminar las peticiones en curso.
+	parar := make(chan os.Signal, 1)
+	signal.Notify(parar, os.Interrupt, syscall.SIGTERM)
+	<-parar
+	log.Println("apagando el servidor (terminando peticiones en curso)...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Printf("apagado forzado: %v", err)
+	}
+	log.Println("servidor detenido limpiamente ✅")
 }
