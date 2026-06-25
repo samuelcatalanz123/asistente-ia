@@ -46,9 +46,9 @@ func main() {
 	http.HandleFunc("/icon-192.png", icon192Handler)
 	http.HandleFunc("/icon-512.png", icon512Handler)
 	http.HandleFunc("/sw.js", swHandler)
-	http.HandleFunc("/health", withLogging(withCORS(healthHandler)))
-	http.HandleFunc("/chat", withLogging(withCORS(limitador.middleware(NewChatHandler(groq)))))
-	http.HandleFunc("/chat/stream", withLogging(withCORS(limitador.middleware(NewStreamChatHandler(groq)))))
+	http.HandleFunc("/health", withLogging(withRecovery(withCORS(healthHandler))))
+	http.HandleFunc("/chat", withLogging(withRecovery(withCORS(limitador.middleware(NewChatHandler(groq))))))
+	http.HandleFunc("/chat/stream", withLogging(withRecovery(withCORS(limitador.middleware(NewStreamChatHandler(groq))))))
 
 	srv := &http.Server{
 		Addr:         ":" + port,

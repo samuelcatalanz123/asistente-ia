@@ -37,21 +37,23 @@ pantalla completa y funciona sin conexión.
 - ⭐ **Favoritos**, 🖼️ **galería** de imágenes y 📑 **exportar la conversación a PDF**
 - 🌙 **Modo oscuro** y diseño moderno y responsive
 - 🛡️ **Seguridad**: la clave de la IA vive solo en el servidor; *rate limiting* por IP
-- ⚙️ **CI**: tests de Go y Flutter ejecutados automáticamente en cada cambio
+- 🛠️ **Backend de producción**: *graceful shutdown* (no corta peticiones al reiniciar), *middleware* de **logging** y de **recuperación de pánico**, y `/health` con versión y *uptime* para monitoreo
+- ⚙️ **CI + tests**: **28 tests** de Go (handlers, streaming, visión, rate limit, middlewares) + tests de Flutter, ejecutados automáticamente en cada cambio
 
 ## 🏗️ Arquitectura
 
 ```
-App Flutter / Web  →  Backend Go (/chat, /chat/stream)  →  Groq API
-                                                            ├─ Llama 3.x  (texto)
-                                                            └─ Llama 4 Scout  (visión 👁️)
+App Flutter / Web  →  Backend Go  →  [recovery → logging → CORS → rate limit]  →  Groq API
+                      (/chat, /chat/stream)                                        ├─ Llama 3.x  (texto)
+                                                                                   └─ Llama 4 Scout  (visión 👁️)
 App (web)           →  Pollinations  →  imágenes generadas 🎨
 ```
 
-La app envía la conversación al backend en Go. El backend añade la clave secreta
-(guardada como variable de entorno, **nunca en el código**), aplica límite de peticiones
-y reenvía la consulta a Groq, devolviendo la respuesta en *streaming* mediante
-**Server-Sent Events (SSE)**. Cuando subes una foto, el backend usa el **modelo de visión**
+Cada petición pasa por una cadena de *middlewares* (recuperación de pánico, logging,
+CORS y *rate limiting*) antes de llegar al handler. La app envía la conversación al
+backend en Go, que añade la clave secreta (guardada como variable de entorno,
+**nunca en el código**) y reenvía la consulta a Groq, devolviendo la respuesta en
+*streaming* mediante **Server-Sent Events (SSE)**. Cuando subes una foto, el backend usa el **modelo de visión**
 de Groq para describirla; y las imágenes que pides (*"dibuja…"*) se generan con
 **Pollinations** (gratis, sin clave).
 
@@ -65,7 +67,8 @@ de Groq para describirla; y las imágenes que pides (*"dibuja…"*) se generan c
 | IA | **Groq API** — Llama 3.x (texto) y Llama 4 Scout (visión 👁️); **Pollinations** para generar imágenes 🎨 |
 | Hosting | **Render** (backend) |
 | Contenedores | **Docker** (build multi-stage, imagen mínima) |
-| Calidad | **GitHub Actions** (CI), tests en Go y Flutter |
+| Calidad | **GitHub Actions** (CI), **28 tests** en Go + tests en Flutter |
+| Producción | *graceful shutdown*, *middlewares* (recovery, logging), `/health` con monitoreo |
 
 ## ▶️ Cómo ejecutarlo
 
