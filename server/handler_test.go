@@ -28,6 +28,25 @@ func TestHealthHandler(t *testing.T) {
 	}
 }
 
+// /health debe incluir la versión y el tiempo activo (útil para monitoreo).
+func TestHealthHandlerIncludesVersionAndUptime(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	rec := httptest.NewRecorder()
+
+	healthHandler(rec, req)
+
+	var body map[string]string
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("invalid json: %v", err)
+	}
+	if body["version"] == "" {
+		t.Fatal("health no incluye la versión")
+	}
+	if body["uptime"] == "" {
+		t.Fatal("health no incluye el tiempo activo (uptime)")
+	}
+}
+
 // fakeAI is a test double for AIClient.
 type fakeAI struct {
 	reply string

@@ -521,6 +521,12 @@
 
   <script>
     const mensajes = document.getElementById("mensajes");
+    // Baja al final solo si el usuario ya está cerca del fondo. Así, si subió a
+    // leer mientras la IA escribe, no lo arrastramos hacia abajo.
+    function autoScroll() {
+      const distancia = mensajes.scrollHeight - mensajes.scrollTop - mensajes.clientHeight;
+      if (distancia < 120) mensajes.scrollTop = mensajes.scrollHeight;
+    }
     const ejemplos = document.getElementById("ejemplos");
     const formulario = document.getElementById("formulario");
     const texto = document.getElementById("texto");
@@ -1482,7 +1488,7 @@
                 if (!llegoAlgo) { llegoAlgo = true; clearTimeout(avisoDespierta); }
                 acumulado += obj.t;
                 pensando.textContent = acumulado;
-                mensajes.scrollTop = mensajes.scrollHeight;
+                autoScroll();
               }
             } catch (e) {}
           }

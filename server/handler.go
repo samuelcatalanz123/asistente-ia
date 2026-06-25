@@ -4,7 +4,14 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"time"
 )
+
+// appVersion identifica la versión desplegada del servidor.
+const appVersion = "1.0.0"
+
+// arranque guarda cuándo empezó el servidor, para calcular el tiempo activo.
+var arranque = time.Now()
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {
 	w.Header().Set("Content-Type", "application/json")
@@ -12,8 +19,13 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 	_ = json.NewEncoder(w).Encode(payload)
 }
 
+// healthHandler informa el estado del servicio (lo usan las herramientas de monitoreo).
 func healthHandler(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	writeJSON(w, http.StatusOK, map[string]string{
+		"status":  "ok",
+		"version": appVersion,
+		"uptime":  time.Since(arranque).Round(time.Second).String(),
+	})
 }
 
 // NewChatHandler returns an http handler that forwards the conversation
