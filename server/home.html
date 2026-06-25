@@ -203,6 +203,10 @@
       overflow-y: auto;
     }
     #texto:focus { border-color: var(--azul); }
+    #coloresTema { display: flex; gap: 12px; margin: 4px 0 6px; }
+    .swatch { width: 30px; height: 30px; border-radius: 50%; border: 3px solid transparent; cursor: pointer; padding: 0; transition: transform .1s; }
+    .swatch:hover { transform: scale(1.12); }
+    .swatch.activo { border-color: var(--texto-ia); }
     #micro, #btnFoto {
       background: var(--chip);
       color: var(--chip-texto);
@@ -493,6 +497,14 @@
         <option value="watercolor painting">🖌️ Acuarela</option>
         <option value="pencil sketch, black and white">✏️ Bosquejo</option>
       </select>
+      <label>🎨 Color del tema</label>
+      <div id="coloresTema">
+        <button type="button" class="swatch" data-color="azul" title="Azul" style="background:#1a73e8"></button>
+        <button type="button" class="swatch" data-color="morado" title="Morado" style="background:#6c4ee0"></button>
+        <button type="button" class="swatch" data-color="verde" title="Verde" style="background:#0f9d58"></button>
+        <button type="button" class="swatch" data-color="naranja" title="Naranja" style="background:#f4511e"></button>
+        <button type="button" class="swatch" data-color="rosa" title="Rosa" style="background:#e91e63"></button>
+      </div>
       <hr style="border:none;border-top:1px solid var(--borde);margin:16px 0;" />
       <label for="selVoz">🎙️ Voz</label>
       <select id="selVoz"></select>
@@ -1431,6 +1443,15 @@
       let acumulado = "";
       aborto = new AbortController();
 
+      // Si el servidor (gratis) estaba dormido, la primera respuesta tarda.
+      // Tras unos segundos sin recibir nada, avisamos para que no parezca colgado.
+      let llegoAlgo = false;
+      const avisoDespierta = setTimeout(() => {
+        if (!llegoAlgo) {
+          pensando.textContent = "El asistente estaba dormido 😴☕ Despertando... dame unos segundos.";
+        }
+      }, 4000);
+
       try {
         const resp = await fetch("/chat/stream", {
           method: "POST",
@@ -1458,6 +1479,7 @@
               const obj = JSON.parse(data);
               if (obj.error) errorMsg = obj.error;
               else if (obj.t) {
+                if (!llegoAlgo) { llegoAlgo = true; clearTimeout(avisoDespierta); }
                 acumulado += obj.t;
                 pensando.textContent = acumulado;
                 mensajes.scrollTop = mensajes.scrollHeight;
@@ -1490,6 +1512,7 @@
           pensando.textContent = "⚠️ No se pudo conectar con el servidor.";
         }
       } finally {
+        clearTimeout(avisoDespierta);
         modoCargando(false);
         texto.focus();
         // Manos libres: si no se habló (p. ej. un error), reactiva la escucha.
@@ -1520,6 +1543,10 @@
       } else {
         enviarMensaje(texto.value);
       }
+    });
+    // ⌨️ Tecla Esc: detiene la respuesta que se está generando.
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && cargando && aborto) aborto.abort();
     });
 
     btnMenu.addEventListener("click", abrirPanel);
@@ -1574,6 +1601,37 @@
       document.body.classList.toggle("oscuro");
       btnTema.textContent = document.body.classList.contains("oscuro") ? "☀️" : "🌙";
     });
+
+    // 🎨 Color del tema (acento) — elegible y recordado.
+    const CLAVE_COLOR = "color-tema";
+    const COLORES = {
+      azul:    { azul: "#1a73e8", osc: "#1557b0", grad: "linear-gradient(135deg, #1a73e8, #6c4ee0)" },
+      morado:  { azul: "#6c4ee0", osc: "#5538c0", grad: "linear-gradient(135deg, #6c4ee0, #a23ee0)" },
+      verde:   { azul: "#0f9d58", osc: "#0b7a43", grad: "linear-gradient(135deg, #0f9d58, #00bfa5)" },
+      naranja: { azul: "#f4511e", osc: "#c63f17", grad: "linear-gradient(135deg, #f4511e, #ff8a00)" },
+      rosa:    { azul: "#e91e63", osc: "#c2185b", grad: "linear-gradient(135deg, #e91e63, #ff5e8a)" },
+    };
+    function aplicarColor(key) {
+      const c = COLORES[key] || COLORES.azul;
+      const raiz = document.documentElement.style;
+      raiz.setProperty("--azul", c.azul);
+      raiz.setProperty("--azul-osc", c.osc);
+      raiz.setProperty("--cabecera", c.grad);
+      document.querySelectorAll(".swatch").forEach((s) =>
+        s.classList.toggle("activo", s.dataset.color === key)
+      );
+      const meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.setAttribute("content", c.azul);
+    }
+    let colorElegido = localStorage.getItem(CLAVE_COLOR) || "azul";
+    document.querySelectorAll(".swatch").forEach((s) => {
+      s.addEventListener("click", () => {
+        colorElegido = s.dataset.color;
+        localStorage.setItem(CLAVE_COLOR, colorElegido);
+        aplicarColor(colorElegido);
+      });
+    });
+    aplicarColor(colorElegido);
 
     // Pantalla completa
     btnPantalla.addEventListener("click", () => {
