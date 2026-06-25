@@ -396,8 +396,8 @@
       </select>
       <label for="selModelo">🧠 Cerebro (modelo de IA)</label>
       <select id="selModelo">
-        <option value="inteligente">🦉 Inteligente (mejor respuesta)</option>
-        <option value="rapido">⚡ Rápido (responde al instante)</option>
+        <option value="rapido">⚡ Rápido (responde al instante) — recomendado</option>
+        <option value="inteligente">🦉 Inteligente (mejor respuesta, más lento)</option>
       </select>
       <hr style="border:none;border-top:1px solid var(--borde);margin:16px 0;" />
       <label for="selVoz">🎙️ Voz</label>
@@ -461,7 +461,7 @@
     let cargando = false;
     let aborto = null;         // para el botón de parar
     let modoElegido = localStorage.getItem(CLAVE_MODO) || "amigable"; // personalidad
-    let modeloElegido = localStorage.getItem(CLAVE_MODELO) || "inteligente"; // cerebro
+    let modeloElegido = localStorage.getItem(CLAVE_MODELO) || "rapido"; // cerebro (rápido por defecto)
 
     // ---------- Conversaciones (#6) ----------
     function convActual() {
