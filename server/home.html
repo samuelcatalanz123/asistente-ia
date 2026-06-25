@@ -392,13 +392,15 @@
 
   <!-- Menú "⋮" con las opciones secundarias (cabecera más limpia) -->
   <div id="menuMas" class="menu-mas" style="display:none">
+    <button id="btnInstalar" style="display:none">📲 Instalar app</button>
     <button id="btnVoz">🔇 Leer en voz alta</button>
     <button id="btnAjustes">⚙️ Ajustes</button>
     <button id="btnNuevoRapido">➕ Nueva conversación</button>
     <button id="btnFavoritos">⭐ Mis favoritos</button>
     <button id="btnWhatsapp">📲 Compartir por WhatsApp</button>
     <button id="btnCompartir">📤 Compartir (otras apps)</button>
-    <button id="btnDescargarConv">📄 Descargar conversación</button>
+    <button id="btnDescargarConv">📄 Descargar conversación (.txt)</button>
+    <button id="btnPdf">📑 Exportar a PDF</button>
     <button id="btnPantalla">⛶ Pantalla completa</button>
   </div>
 
@@ -757,6 +759,11 @@
       btnDesc.textContent = "💾 Descargar";
       btnDesc.onclick = () => descargarImagen(url);
       div.appendChild(btnDesc);
+      const btnComp = document.createElement("button");
+      btnComp.className = "copiar-msg";
+      btnComp.textContent = "📤 Compartir";
+      btnComp.onclick = () => compartirImagen(url);
+      div.appendChild(btnComp);
       div.appendChild(botonFav({ clave: url, tipo: "imagen", imageUrl: url }));
       agregarHora(div, hora);
       mensajes.appendChild(div);
@@ -778,6 +785,30 @@
           URL.revokeObjectURL(a.href);
         })
         .catch(() => window.open(url, "_blank")); // respaldo: abrir en pestaña
+    }
+
+    // Comparte una imagen generada por WhatsApp / otras apps del teléfono.
+    async function compartirImagen(url) {
+      try {
+        const blob = await (await fetch(url)).blob();
+        const archivo = new File([blob], "imagen-ia.jpg", { type: blob.type || "image/jpeg" });
+        // Lo mejor: compartir el archivo de imagen directo (móvil moderno).
+        if (navigator.canShare && navigator.canShare({ files: [archivo] })) {
+          await navigator.share({ files: [archivo], title: "Imagen de mi Asistente IA" });
+          return;
+        }
+        // Si no se puede el archivo, comparte al menos el enlace.
+        if (navigator.share) {
+          await navigator.share({ title: "Imagen de mi Asistente IA", text: "Mira esta imagen 🎨", url });
+          return;
+        }
+        // Respaldo final (PC sin compartir): descargar para enviarla a mano.
+        descargarImagen(url);
+        alert("Imagen descargada 💾. Ya puedes adjuntarla en WhatsApp u otra app.");
+      } catch (e) {
+        if (e && e.name === "AbortError") return; // el usuario canceló
+        descargarImagen(url);
+      }
     }
 
     // Si el mensaje pide una imagen ("imagen de un gato", "dibuja…"), devuelve
@@ -931,6 +962,45 @@
       URL.revokeObjectURL(a.href);
     });
 
+    // Exporta la conversación como PDF con formato bonito (vía imprimir → guardar PDF).
+    const btnPdf = document.getElementById("btnPdf");
+    function exportarPDF() {
+      const h = historial();
+      if (!h.length) { alert("Escribe algo primero para exportar 🙂"); return; }
+      const filas = h.map((m) => {
+        const yo = m.role === "user";
+        const cuerpo = escaparHTML(m.content || "").replace(/\n/g, "<br>");
+        const src = m.imageUrl || m.imagen;
+        const img = src ? '<img src="' + src + '" alt="imagen">' : "";
+        return '<div class="msg ' + (yo ? "yo" : "ia") + '"><div class="quien">' +
+          (yo ? "🧑 Yo" : "🤖 Asistente") + '</div><div class="texto">' + cuerpo + img + "</div></div>";
+      }).join("");
+      const espera = "window.onload=function(){var g=[].slice.call(document.images);" +
+        "var p=g.filter(function(i){return !i.complete}).length;" +
+        "function d(){p--;if(p<=0)setTimeout(function(){window.print()},300)}" +
+        "if(!p){setTimeout(function(){window.print()},300);return}" +
+        "g.forEach(function(i){i.addEventListener('load',d);i.addEventListener('error',d)})};";
+      const html = '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">' +
+        "<title>Conversación con mi Asistente IA</title><style>" +
+        "body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:720px;margin:24px auto;padding:0 16px;color:#1f2733}" +
+        "h1{color:#1a73e8;font-size:22px;margin-bottom:2px}" +
+        ".sub{color:#888;margin-bottom:24px;font-size:12px}" +
+        ".msg{margin:14px 0}.quien{font-weight:700;font-size:13px;margin-bottom:4px}" +
+        ".yo .quien{color:#1a73e8}.ia .quien{color:#6c4ee0}" +
+        ".texto{background:#f4f6fb;border-radius:12px;padding:12px 14px;line-height:1.5}" +
+        ".yo .texto{background:#e8f0fe}" +
+        "img{max-width:280px;border-radius:10px;margin-top:8px;display:block}" +
+        "</style></head><body>" +
+        "<h1>🤖 Conversación con mi Asistente IA</h1>" +
+        '<div class="sub">Generado con Asistente IA — asistente-ia-xh5v.onrender.com</div>' +
+        filas + "<scr" + "ipt>" + espera + "</scr" + "ipt></body></html>";
+      const w = window.open("", "_blank");
+      if (!w) { alert("Permite las ventanas emergentes para exportar a PDF 🙂"); return; }
+      w.document.write(html);
+      w.document.close();
+    }
+    btnPdf.addEventListener("click", exportarPDF);
+
     // ----- Favoritos: guardar respuestas e imágenes -----
     const CLAVE_FAVS = "favoritos-asistente";
     let favoritos = [];
@@ -995,6 +1065,31 @@
     cerrarFavoritos.addEventListener("click", () => fondoFavoritos.classList.remove("abierto"));
     fondoFavoritos.addEventListener("click", (e) => {
       if (e.target === fondoFavoritos) fondoFavoritos.classList.remove("abierto");
+    });
+
+    // ----- Instalable (PWA): service worker + botón "Instalar app" -----
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/sw.js").catch(() => {});
+      });
+    }
+    const btnInstalar = document.getElementById("btnInstalar");
+    let promptInstalar = null;
+    window.addEventListener("beforeinstallprompt", (e) => {
+      e.preventDefault();
+      promptInstalar = e;
+      btnInstalar.style.display = "block"; // ya se puede instalar: mostramos el botón
+    });
+    btnInstalar.addEventListener("click", async () => {
+      if (!promptInstalar) return;
+      promptInstalar.prompt();
+      await promptInstalar.userChoice;
+      promptInstalar = null;
+      btnInstalar.style.display = "none";
+    });
+    window.addEventListener("appinstalled", () => {
+      promptInstalar = null;
+      btnInstalar.style.display = "none";
     });
 
     function mostrarPreviewFoto() {

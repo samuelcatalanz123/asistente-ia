@@ -42,6 +42,7 @@ func main() {
 	http.HandleFunc("/manifest.webmanifest", manifestHandler)
 	http.HandleFunc("/icon-192.png", icon192Handler)
 	http.HandleFunc("/icon-512.png", icon512Handler)
+	http.HandleFunc("/sw.js", swHandler)
 	http.HandleFunc("/health", withCORS(healthHandler))
 	http.HandleFunc("/chat", withCORS(limitador.middleware(NewChatHandler(groq))))
 	http.HandleFunc("/chat/stream", withCORS(limitador.middleware(NewStreamChatHandler(groq))))
