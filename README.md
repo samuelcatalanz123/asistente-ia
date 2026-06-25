@@ -13,8 +13,8 @@ construido con **Flutter** y un **backend en Go**. Es **multimodal**: además de
 
 ## 📸 Capturas
 
-| Pantalla de inicio | Respuesta con código |
-|--------------------|----------------------|
+| Pantalla de inicio | Genera y entiende imágenes 🎨👁️ |
+|--------------------|----------------------------------|
 | ![Inicio](docs/captura-inicio.png) | ![Chat](docs/captura-chat.png) |
 
 ---
