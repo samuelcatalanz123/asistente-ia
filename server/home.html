@@ -405,6 +405,16 @@
         <option value="rapido">⚡ Rápido (responde al instante) — recomendado</option>
         <option value="inteligente">🦉 Inteligente (mejor respuesta, más lento)</option>
       </select>
+      <label for="selEstilo">🎨 Estilo de las imágenes</label>
+      <select id="selEstilo">
+        <option value="">🖼️ Normal</option>
+        <option value="photorealistic, realistic, high detail">📷 Realista</option>
+        <option value="cartoon style, colorful">🎨 Caricatura</option>
+        <option value="anime style">🌸 Anime</option>
+        <option value="pixel art, 8-bit">👾 Pixel art</option>
+        <option value="watercolor painting">🖌️ Acuarela</option>
+        <option value="pencil sketch, black and white">✏️ Bosquejo</option>
+      </select>
       <hr style="border:none;border-top:1px solid var(--borde);margin:16px 0;" />
       <label for="selVoz">🎙️ Voz</label>
       <select id="selVoz"></select>
@@ -468,6 +478,8 @@
     let aborto = null;         // para el botón de parar
     let modoElegido = localStorage.getItem(CLAVE_MODO) || "amigable"; // personalidad
     let modeloElegido = localStorage.getItem(CLAVE_MODELO) || "rapido"; // cerebro (rápido por defecto)
+    const CLAVE_ESTILO = "estilo-imagen";
+    let estiloElegido = localStorage.getItem(CLAVE_ESTILO) || ""; // estilo de las imágenes
 
     // ---------- Conversaciones (#6) ----------
     function convActual() {
@@ -663,10 +675,32 @@
       img.className = "img-generada";
       img.loading = "lazy";
       div.appendChild(img);
+      // Botón para descargar/guardar la imagen.
+      const btnDesc = document.createElement("button");
+      btnDesc.className = "copiar-msg";
+      btnDesc.textContent = "💾 Descargar";
+      btnDesc.onclick = () => descargarImagen(url);
+      div.appendChild(btnDesc);
       agregarHora(div, hora);
       mensajes.appendChild(div);
       mensajes.scrollTop = mensajes.scrollHeight;
       return div;
+    }
+
+    // Descarga la imagen al dispositivo (la baja como archivo .jpg).
+    function descargarImagen(url) {
+      fetch(url)
+        .then((r) => r.blob())
+        .then((blob) => {
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = "imagen-ia.jpg";
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(a.href);
+        })
+        .catch(() => window.open(url, "_blank")); // respaldo: abrir en pestaña
     }
 
     // Si el mensaje pide una imagen ("imagen de un gato", "dibuja…"), devuelve
@@ -972,7 +1006,8 @@
         // ¿Pide una imagen? → la generamos y mostramos (sin molestar a la IA).
         const temaImg = temaDeImagen(contenido);
         if (temaImg) {
-          const url = "https://image.pollinations.ai/prompt/" + encodeURIComponent(temaImg);
+          const prompt = estiloElegido ? (temaImg + ", " + estiloElegido) : temaImg;
+          const url = "https://image.pollinations.ai/prompt/" + encodeURIComponent(prompt);
           const horaImg = horaActual();
           const cap = 'Aquí tienes una imagen de "' + temaImg + '" 🎨';
           pintarImagen(cap, url, horaImg);
@@ -1080,6 +1115,13 @@
     selModelo.addEventListener("change", () => {
       modeloElegido = selModelo.value;
       localStorage.setItem(CLAVE_MODELO, modeloElegido);
+    });
+
+    const selEstilo = document.getElementById("selEstilo");
+    selEstilo.value = estiloElegido;
+    selEstilo.addEventListener("change", () => {
+      estiloElegido = selEstilo.value;
+      localStorage.setItem(CLAVE_ESTILO, estiloElegido);
     });
 
     // #C — Compartir la conversación
