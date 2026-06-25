@@ -1,11 +1,40 @@
 package main
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 )
+
+// clientIP debe sacar la IP real: la primera de X-Forwarded-For (la pone el
+// proxy de Render) o, si no hay, el RemoteAddr sin el puerto.
+func TestClientIP(t *testing.T) {
+	casos := []struct {
+		nombre     string
+		xff        string
+		remoteAddr string
+		quiero     string
+	}{
+		{"x-forwarded-for simple", "203.0.113.7", "10.0.0.1:1234", "203.0.113.7"},
+		{"x-forwarded-for con varios (toma el primero)", "203.0.113.7, 70.41.3.18", "10.0.0.1:1234", "203.0.113.7"},
+		{"sin x-forwarded-for usa RemoteAddr sin puerto", "", "192.168.1.5:5555", "192.168.1.5"},
+	}
+	for _, c := range casos {
+		t.Run(c.nombre, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			req.RemoteAddr = c.remoteAddr
+			if c.xff != "" {
+				req.Header.Set("X-Forwarded-For", c.xff)
+			}
+			if got := clientIP(req); got != c.quiero {
+				t.Fatalf("clientIP = %q, quería %q", got, c.quiero)
+			}
+		})
+	}
+}
 
 // Bajo muchas peticiones a la vez (misma IP, misma ventana), el límite debe
 // respetarse EXACTAMENTE. Corre con -race para detectar condiciones de carrera.

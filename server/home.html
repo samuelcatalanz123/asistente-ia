@@ -225,6 +225,8 @@
     /* Tamaño de texto ajustable (accesibilidad). */
     body.texto-pequeno .burbuja, body.texto-pequeno #texto { font-size: 13.5px; }
     body.texto-grande .burbuja, body.texto-grande #texto { font-size: 18px; }
+    #btnVaciarTodas { width: 100%; padding: 10px 12px; border: 1px solid #e0b4b4; border-radius: 10px; background: transparent; color: #c0392b; font-size: 14px; cursor: pointer; }
+    #btnVaciarTodas:hover { background: rgba(192,57,43,.08); }
     #micro, #btnFoto {
       background: var(--chip);
       color: var(--chip-texto);
@@ -533,6 +535,8 @@
         <option value="normal">Normal</option>
         <option value="grande">Grande</option>
       </select>
+      <label>🗑️ Conversaciones</label>
+      <button id="btnVaciarTodas" type="button">Vaciar todas las conversaciones</button>
       <hr style="border:none;border-top:1px solid var(--borde);margin:16px 0;" />
       <label for="selVoz">🎙️ Voz</label>
       <select id="selVoz"></select>
@@ -669,6 +673,7 @@
     }
     function borrar(id, ev) {
       ev.stopPropagation();
+      if (!confirm("¿Seguro que quieres borrar esta conversación? No se puede deshacer.")) return;
       conversaciones = conversaciones.filter((c) => c.id !== id);
       if (idActual === id) {
         if (conversaciones.length) idActual = conversaciones[0].id;
@@ -1583,9 +1588,13 @@
         enviarMensaje(texto.value);
       }
     });
-    // ⌨️ Tecla Esc: detiene la respuesta que se está generando.
+    // ⌨️ Atajos de teclado: Esc detiene la respuesta; Ctrl/Cmd+K abre una nueva conversación.
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && cargando && aborto) aborto.abort();
+      if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K")) {
+        e.preventDefault();
+        crearNueva();
+      }
     });
 
     btnMenu.addEventListener("click", abrirPanel);
@@ -1727,6 +1736,15 @@
       tamanoTexto = selTexto.value;
       localStorage.setItem(CLAVE_TEXTO, tamanoTexto);
       aplicarTamano(tamanoTexto);
+    });
+
+    // 🗑️ Vaciar todas las conversaciones (con confirmación).
+    const btnVaciarTodas = document.getElementById("btnVaciarTodas");
+    btnVaciarTodas.addEventListener("click", () => {
+      if (!confirm("¿Borrar TODAS las conversaciones? Esto no se puede deshacer.")) return;
+      conversaciones = [];
+      idActual = null;
+      crearNueva(); // deja una conversación nueva y vacía
     });
 
     // Pantalla completa
