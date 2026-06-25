@@ -4,6 +4,8 @@ Asistente de chat con **Inteligencia Artificial**, multiplataforma (web, móvil 
 construido con **Flutter** y un **backend en Go**. Es **multimodal**: además de chatear,
 **genera imágenes** 🎨 y **entiende las fotos que le subes** 👁️. Responde en *streaming*
 (palabra a palabra), formatea el código, habla por voz y guarda tus conversaciones.
+La versión web es una **PWA instalable** 📲: se añade a la pantalla de inicio, abre a
+pantalla completa y funciona sin conexión.
 
 [![CI](https://github.com/samuelcatalanz123/asistente-ia/actions/workflows/ci.yml/badge.svg)](https://github.com/samuelcatalanz123/asistente-ia/actions/workflows/ci.yml)
 
@@ -22,13 +24,17 @@ construido con **Flutter** y un **backend en Go**. Es **multimodal**: además de
 ## ✨ Funciones
 
 - 💬 **Chat con IA** en *streaming* (la respuesta aparece palabra a palabra, como ChatGPT)
-- 🎨 **Genera imágenes**: pídele *"imagen de un gato"* o *"dibuja un dragón"* y la crea con IA
-- 👁️ **Entiende imágenes (visión)**: súbele una foto y te la describe o responde sobre ella
+- 📲 **App instalable (PWA)**: instálala en el móvil o el escritorio; abre a pantalla completa y **funciona sin conexión** (*service worker*)
+- 🎨 **Genera imágenes**: pídele *"imagen de un gato"* o *"dibuja un dragón"* y la crea con IA — con **estilos** (realista, anime, acuarela…), **descargar** 💾 y **compartir** 📤
+- 👁️ **Entiende imágenes (visión)**: súbele una foto (o **tómala con la cámara** 📸) y te la describe o responde sobre ella
 - ⚡ **Dos cerebros**: modelo *Rápido* (responde al instante) o *Inteligente* (mejor respuesta)
+- 🎙️ **Manos libres**: modo de voz continua para hablar sin tocar la pantalla
+- 📝 **Resumir** y 🌐 **traducir** con un toque, sobre tu texto o la última respuesta
 - 💻 **Formato de código**: bloques con resaltado y botón de *copiar* — experto en programación
 - 🎤 **Voz**: dicta tus mensajes por micrófono y escucha las respuestas en voz alta
 - 🌍 **Bilingüe**: responde en el mismo idioma en el que le escribes (español / inglés)
-- 🗂️ **Varias conversaciones** guardadas, con panel lateral (estilo ChatGPT)
+- 🗂️ **Varias conversaciones**: panel lateral con **buscador** 🔍 y **renombrar** ✏️ (estilo ChatGPT)
+- ⭐ **Favoritos**, 🖼️ **galería** de imágenes y 📑 **exportar la conversación a PDF**
 - 🌙 **Modo oscuro** y diseño moderno y responsive
 - 🛡️ **Seguridad**: la clave de la IA vive solo en el servidor; *rate limiting* por IP
 - ⚙️ **CI**: tests de Go y Flutter ejecutados automáticamente en cada cambio
@@ -54,6 +60,7 @@ de Groq para describirla; y las imágenes que pides (*"dibuja…"*) se generan c
 | Capa | Tecnología |
 |------|------------|
 | Frontend | **Flutter / Dart** (móvil, escritorio) + cliente web en HTML/JS |
+| Web app | **PWA** instalable (manifest + *service worker*, funciona offline) |
 | Backend | **Go** (librería estándar, sin frameworks) |
 | IA | **Groq API** — Llama 3.x (texto) y Llama 4 Scout (visión 👁️); **Pollinations** para generar imágenes 🎨 |
 | Hosting | **Render** (backend) |
