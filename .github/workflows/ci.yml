@@ -36,7 +36,22 @@
             channel: stable
         - name: Instalar dependencias
           run: flutter pub get
-        - name: Revisar código  
+        - name: Revisar código
           run: flutter analyze
         - name: Pruebas
           run: flutter test
+
+    desplegar:
+      name: Desplegar en Render
+      needs: [servidor-go, app-flutter]   # solo si los tests pasan
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      runs-on: ubuntu-latest
+      steps:
+        - name: Disparar el deploy en Render
+          run: |
+            if [ -n "${{ secrets.RENDER_DEPLOY_HOOK }}" ]; then
+              curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
+              echo "Deploy disparado en Render ✅"
+            else
+              echo "Falta el secreto RENDER_DEPLOY_HOOK. Añádelo en GitHub para activar el auto-deploy."
+            fi
