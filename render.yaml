@@ -3,6 +3,7 @@ services:
     name: asistente-ia-server
     runtime: go
     rootDir: server
+    autoDeploy: true   # despliega solo en cada push a la rama principal
     buildCommand: go build -o app .
     startCommand: ./app
     envVars:
