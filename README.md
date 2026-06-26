@@ -38,7 +38,7 @@ pantalla completa y funciona sin conexión.
 - 🌙 **Modo oscuro** y diseño moderno y responsive
 - 🛡️ **Seguridad**: la clave de la IA vive solo en el servidor; *rate limiting* por IP
 - 🛠️ **Backend de producción**: *graceful shutdown* (no corta peticiones al reiniciar), *middleware* de **logging** y de **recuperación de pánico**, y `/health` con versión y *uptime* para monitoreo
-- ⚙️ **CI + tests**: **28 tests** de Go (handlers, streaming, visión, rate limit, middlewares) + tests de Flutter, ejecutados automáticamente en cada cambio
+- ⚙️ **CI + tests**: **35 tests** de Go (handlers, streaming, visión, rate limit, middlewares) + tests de Flutter, ejecutados automáticamente en cada cambio
 
 ## 🏗️ Arquitectura
 
@@ -67,7 +67,7 @@ de Groq para describirla; y las imágenes que pides (*"dibuja…"*) se generan c
 | IA | **Groq API** — Llama 3.x (texto) y Llama 4 Scout (visión 👁️); **Pollinations** para generar imágenes 🎨 |
 | Hosting | **Render** (backend) |
 | Contenedores | **Docker** (build multi-stage, imagen mínima) |
-| Calidad | **GitHub Actions** (CI), **28 tests** en Go + tests en Flutter |
+| Calidad | **GitHub Actions** (CI), **35 tests** en Go + tests en Flutter |
 | Producción | *graceful shutdown*, *middlewares* (recovery, logging), `/health` con monitoreo |
 
 ## ▶️ Cómo ejecutarlo

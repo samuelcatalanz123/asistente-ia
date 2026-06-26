@@ -1588,9 +1588,25 @@
         enviarMensaje(texto.value);
       }
     });
-    // ⌨️ Atajos de teclado: Esc detiene la respuesta; Ctrl/Cmd+K abre una nueva conversación.
+    // Cierra la ventana/menú/panel que esté abierto (el de más arriba). Devuelve true si cerró algo.
+    function cerrarAbierto() {
+      for (const f of [fondoGaleria, fondoFavoritos, fondoAjustes]) {
+        if (f && f.classList.contains("abierto")) { f.classList.remove("abierto"); return true; }
+      }
+      if (menuMas.style.display !== "none") { menuMas.style.display = "none"; return true; }
+      if (panel.classList.contains("abierto")) { cerrarPanel(); return true; }
+      return false;
+    }
+    // ⌨️ Atajos de teclado.
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && cargando && aborto) aborto.abort();
+      if (e.key === "Escape") {
+        if (cerrarAbierto()) return;                       // 1) cierra galería/favoritos/ajustes/menú/panel
+        if (window.speechSynthesis && window.speechSynthesis.speaking) {
+          window.speechSynthesis.cancel();                 // 2) calla la lectura en voz alta
+          return;
+        }
+        if (cargando && aborto) aborto.abort();            // 3) detiene la respuesta en curso
+      }
       if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K")) {
         e.preventDefault();
         crearNueva();
