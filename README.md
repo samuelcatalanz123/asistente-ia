@@ -65,7 +65,7 @@ de Groq para describirla; y las imágenes que pides (*"dibuja…"*) se generan c
 | Web app | **PWA** instalable (manifest + *service worker*, funciona offline) |
 | Backend | **Go** (librería estándar, sin frameworks) |
 | IA | **Groq API** — Llama 3.x (texto) y Llama 4 Scout (visión 👁️); **Pollinations** para generar imágenes 🎨 |
-| Hosting | **Render** (backend) |
+| Hosting | **Render** (backend) con **CI/CD**: el deploy se dispara solo cuando los tests pasan |
 | Contenedores | **Docker** (build multi-stage, imagen mínima) |
 | Calidad | **GitHub Actions** (CI), **35 tests** en Go + tests en Flutter |
 | Producción | *graceful shutdown*, *middlewares* (recovery, logging), `/health` con monitoreo |
