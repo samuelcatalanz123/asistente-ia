@@ -8,7 +8,7 @@ import (
 )
 
 // appVersion identifica la versión desplegada del servidor.
-const appVersion = "1.0.0"
+const appVersion = "1.0.1"
 
 // arranque guarda cuándo empezó el servidor, para calcular el tiempo activo.
 var arranque = time.Now()
